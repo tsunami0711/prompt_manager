@@ -1,3 +1,6 @@
+mod analytics;
+mod domain;
+
 fn main() {
     tauri::Builder::default()
         .run(tauri::generate_context!())
