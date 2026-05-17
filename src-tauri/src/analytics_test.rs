@@ -20,7 +20,7 @@ fn human_label_wins_over_llm_judgement() {
         Some(LlmJudgement::new(PassFail::Pass, "ok".to_string())),
     );
 
-    assert_eq!(result.value.as_str(), "fail");
+    assert_eq!(result.result.as_str(), "fail");
     assert_eq!(result.source, FinalResultSource::Human);
 }
 
@@ -32,6 +32,14 @@ fn llm_judgement_is_used_when_human_label_is_absent() {
         Some(LlmJudgement::new(PassFail::Pass, "ok".to_string())),
     );
 
-    assert_eq!(result.value.as_str(), "pass");
+    assert_eq!(result.result.as_str(), "pass");
     assert_eq!(result.source, FinalResultSource::Llm);
+}
+
+#[test]
+fn pending_is_used_when_no_judgement_exists() {
+    let result = compute_final_result(CaseResultStatus::Completed, None, None);
+
+    assert_eq!(result.result.as_str(), "pending");
+    assert_eq!(result.source, FinalResultSource::None);
 }

@@ -13,13 +13,13 @@ pub enum FinalResultSource {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FinalResult {
-    pub value: PassFailOrState,
+    pub result: PassFailOrState,
     pub source: FinalResultSource,
 }
 
 impl FinalResult {
-    pub fn new(value: PassFailOrState, source: FinalResultSource) -> Self {
-        Self { value, source }
+    pub fn new(result: PassFailOrState, source: FinalResultSource) -> Self {
+        Self { result, source }
     }
 }
 
