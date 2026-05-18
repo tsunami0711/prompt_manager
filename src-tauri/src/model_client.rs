@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
 
 use crate::error::{AppError, AppResult};
 
@@ -46,6 +47,9 @@ pub async fn complete_chat(
     user_input: &str,
 ) -> AppResult<String> {
     let url = format!("{}/chat/completions", config.base_url.trim_end_matches('/'));
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(60))
+        .build()?;
     let request = ChatRequest {
         model: config.model.clone(),
         messages: vec![
@@ -62,17 +66,25 @@ pub async fn complete_chat(
         max_tokens: config.max_tokens,
     };
 
-    let response = reqwest::Client::new()
+    let response = client
         .post(url)
         .bearer_auth(&config.api_key)
         .json(&request)
         .send()
         .await?;
 
-    if !response.status().is_success() {
+    let status = response.status();
+    if !status.is_success() {
+        let body = response.text().await.unwrap_or_default();
+        if body.is_empty() {
+            return Err(AppError::Validation(format!(
+                "model request failed with status {status}"
+            )));
+        }
+
+        let detail: String = body.chars().take(500).collect();
         return Err(AppError::Validation(format!(
-            "model request failed with status {}",
-            response.status()
+            "model request failed with status {status}: {detail}"
         )));
     }
 
@@ -84,4 +96,9 @@ pub async fn complete_chat(
         .ok_or_else(|| AppError::Validation("model response contained no choices".to_string()))?;
 
     Ok(content)
+}
+
+#[cfg(test)]
+mod tests {
+    include!("model_client_test.rs");
 }
