@@ -3,6 +3,8 @@ mod commands;
 mod db;
 mod domain;
 mod error;
+mod judge;
+mod model_client;
 mod secrets;
 mod state;
 
