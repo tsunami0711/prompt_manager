@@ -17,6 +17,10 @@ export function Sidebar({
   onSelectPrompt,
   onSelectVersion
 }: SidebarProps) {
+  const visibleVersions = selectedPromptId
+    ? versions.filter((version) => version.promptId === selectedPromptId)
+    : [];
+
   return (
     <aside className="sidebar">
       <div className="sidebar-header">
@@ -40,7 +44,7 @@ export function Sidebar({
       {selectedPromptId && (
         <div className="version-list">
           <p className="eyebrow">Versions</p>
-          {versions.map((version) => (
+          {visibleVersions.map((version) => (
             <button
               key={version.id}
               className={version.id === selectedVersionId ? "version-item selected" : "version-item"}
