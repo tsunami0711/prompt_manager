@@ -23,24 +23,259 @@ select {
   font: inherit;
 }
 
-.app-shell {
+.button,
+.icon-button,
+.sidebar-item,
+.version-item,
+.tab {
+  border: 0;
+  cursor: pointer;
+}
+
+.app-layout {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
   min-height: 100vh;
   background: #f8fafc;
 }
 
-.empty-state {
-  display: grid;
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
   min-height: 100vh;
-  place-content: center;
-  text-align: center;
+  padding: 20px 16px;
+  border-right: 1px solid #e2e8f0;
+  background: #ffffff;
 }
 
-.empty-state h1 {
-  margin: 0 0 8px;
-  font-size: 32px;
+.sidebar-header,
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
 }
 
-.empty-state p {
+.sidebar-header strong {
+  font-size: 15px;
+}
+
+.input {
+  width: 100%;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  color: #111827;
+  background: #ffffff;
+}
+
+.input::placeholder {
+  color: #94a3b8;
+}
+
+.sidebar-list,
+.version-list,
+.case-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sidebar-list {
+  padding-bottom: 14px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.version-list {
+  gap: 6px;
+}
+
+.sidebar-item,
+.version-item {
+  width: 100%;
+  min-height: 36px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  color: #334155;
+  background: transparent;
+  text-align: left;
+}
+
+.sidebar-item span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-item:hover,
+.version-item:hover,
+.tab:hover {
+  background: #f1f5f9;
+}
+
+.sidebar-item.selected,
+.version-item.selected,
+.tab.active {
+  color: #0f172a;
+  background: #e6f2ef;
+}
+
+.workspace {
+  min-width: 0;
+  padding: 20px;
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.tab {
+  min-height: 38px;
+  padding: 0 12px;
+  border-radius: 8px 8px 0 0;
+  color: #475569;
+  background: transparent;
+  white-space: nowrap;
+}
+
+.editor-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 16px;
+  align-items: start;
+}
+
+.panel {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.empty-panel {
+  display: grid;
+  min-height: 240px;
+  place-items: center;
   margin: 0;
   color: #64748b;
+}
+
+.prompt-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: calc(100vh - 112px);
+}
+
+.panel-header h2 {
+  margin: 2px 0 0;
+  overflow-wrap: anywhere;
+  font-size: 18px;
+  line-height: 1.25;
+}
+
+.eyebrow {
+  margin: 0;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.button {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  color: #334155;
+  background: #ffffff;
+  white-space: nowrap;
+}
+
+.button:hover {
+  border-color: #94a3b8;
+  background: #f8fafc;
+}
+
+.button.primary {
+  border-color: #166b5b;
+  color: #ffffff;
+  background: #16735f;
+}
+
+.button.primary:hover {
+  border-color: #105846;
+  background: #105f4d;
+}
+
+.icon-button {
+  display: inline-grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  color: #334155;
+  background: #ffffff;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.icon-button:hover {
+  border-color: #94a3b8;
+  background: #f8fafc;
+}
+
+.prompt-textarea {
+  flex: 1;
+  width: 100%;
+  min-height: 460px;
+  padding: 14px;
+  resize: vertical;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  color: #111827;
+  background: #fbfdff;
+  line-height: 1.5;
+}
+
+.prompt-textarea:focus,
+.input:focus {
+  outline: 2px solid #98d7c8;
+  outline-offset: 1px;
+  border-color: #16735f;
+}
+
+.case-row {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fbfdff;
+}
+
+.case-row strong,
+.case-row span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.case-row strong {
+  font-size: 14px;
+}
+
+.case-row span {
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.45;
 }
