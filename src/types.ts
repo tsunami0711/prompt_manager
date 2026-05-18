@@ -38,7 +38,7 @@ export interface PromptVersionRecord {
   promptId: string;
   versionName: string;
   content: string;
-  note: string | null;
+  note?: string | null;
 }
 
 export interface TestCaseRecord {
@@ -46,9 +46,9 @@ export interface TestCaseRecord {
   promptId: string;
   title: string;
   input: string;
-  tags: string;
-  note: string | null;
-  enabled: boolean;
+  tags?: string;
+  note?: string | null;
+  enabled?: boolean;
 }
 
 export interface ModelConfigRecord {

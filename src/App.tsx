@@ -33,14 +33,30 @@ const cases: TestCaseRecord[] = [
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("editor");
-  const [selectedPromptId, setSelectedPromptId] = useState("p1");
-  const [selectedVersionId, setSelectedVersionId] = useState("v1");
-  const [versions, setVersions] = useState(initialVersions);
+  const [selectedPromptId, setSelectedPromptId] = useState<string | null>("p1");
+  const [selectedVersionId, setSelectedVersionId] = useState<string | null>("v1");
+  const [versions, setVersions] = useState<PromptVersionRecord[]>(initialVersions);
+
+  const visibleVersions = useMemo(
+    () => versions.filter((version) => version.promptId === selectedPromptId),
+    [selectedPromptId, versions]
+  );
+
+  const visibleCases = useMemo(
+    () => cases.filter((testCase) => testCase.promptId === selectedPromptId),
+    [selectedPromptId]
+  );
 
   const selectedVersion = useMemo(
-    () => versions.find((version) => version.id === selectedVersionId) ?? null,
-    [selectedVersionId, versions]
+    () => visibleVersions.find((version) => version.id === selectedVersionId) ?? null,
+    [selectedVersionId, visibleVersions]
   );
+
+  function selectPrompt(id: string) {
+    setSelectedPromptId(id);
+    const firstVersion = versions.find((version) => version.promptId === id);
+    setSelectedVersionId(firstVersion?.id ?? null);
+  }
 
   function updateVersionContent(content: string) {
     setVersions((current) =>
@@ -54,10 +70,10 @@ export default function App() {
     <main className="app-layout">
       <Sidebar
         prompts={prompts}
-        versions={versions}
+        versions={visibleVersions}
         selectedPromptId={selectedPromptId}
         selectedVersionId={selectedVersionId}
-        onSelectPrompt={setSelectedPromptId}
+        onSelectPrompt={selectPrompt}
         onSelectVersion={setSelectedVersionId}
       />
       <section className="workspace">
@@ -65,7 +81,7 @@ export default function App() {
         {activeTab === "editor" && (
           <div className="editor-grid">
             <PromptEditor version={selectedVersion} onContentChange={updateVersionContent} />
-            <CaseManager cases={cases} />
+            <CaseManager cases={visibleCases} />
           </div>
         )}
       </section>

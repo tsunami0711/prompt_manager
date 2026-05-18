@@ -15,11 +15,12 @@ export function Tabs({
   onChange: (tab: WorkspaceTab) => void;
 }) {
   return (
-    <nav className="tabs">
+    <nav className="tabs" aria-label="Workspace views">
       {(Object.keys(labels) as WorkspaceTab[]).map((tab) => (
         <button
           key={tab}
           className={active === tab ? "tab active" : "tab"}
+          aria-current={active === tab ? "page" : undefined}
           onClick={() => onChange(tab)}
         >
           {labels[tab]}

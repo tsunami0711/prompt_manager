@@ -29,7 +29,7 @@ export function Sidebar({
           +
         </button>
       </div>
-      <input className="input" placeholder="Search prompt" />
+      <input className="input" aria-label="Search prompts" placeholder="Search prompt" />
       <div className="sidebar-list">
         {prompts.map((prompt) => (
           <button
