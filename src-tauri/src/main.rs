@@ -2,6 +2,7 @@ mod analytics;
 mod db;
 mod domain;
 mod error;
+mod state;
 
 fn main() {
     tauri::Builder::default()

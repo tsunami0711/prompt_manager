@@ -1,10 +1,10 @@
 use chrono::Utc;
-use rusqlite::{params, Connection};
+use rusqlite::{params, Connection, OptionalExtension};
 use serde::Serialize;
 use uuid::Uuid;
 
 use crate::domain::{HumanLabel, LlmJudgement, PassFail};
-use crate::error::AppResult;
+use crate::error::{AppError, AppResult};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct PromptRecord {
@@ -179,6 +179,12 @@ impl Repository {
         judge_prompt: Option<&str>,
         case_scope: &str,
     ) -> AppResult<EvaluationRunRecord> {
+        if !self.prompt_version_belongs_to_prompt(version_id, prompt_id)? {
+            return Err(AppError::Validation(
+                "prompt version does not belong to prompt".to_string(),
+            ));
+        }
+
         let id = Self::id();
         let now = Self::now();
         self.conn.execute(
@@ -198,6 +204,27 @@ impl Repository {
         error_message: Option<&str>,
         latency_ms: i64,
     ) -> AppResult<CaseResultRecord> {
+        let Some((run_prompt_id, run_version_id)) = self.run_prompt_and_version(run_id)? else {
+            return Err(AppError::Validation(
+                "evaluation run does not exist".to_string(),
+            ));
+        };
+        if run_version_id != version_id {
+            return Err(AppError::Validation(
+                "case result version does not match evaluation run version".to_string(),
+            ));
+        }
+        if !self.prompt_version_belongs_to_prompt(version_id, &run_prompt_id)? {
+            return Err(AppError::Validation(
+                "prompt version does not belong to evaluation run prompt".to_string(),
+            ));
+        }
+        if !self.test_case_belongs_to_prompt(case_id, &run_prompt_id)? {
+            return Err(AppError::Validation(
+                "test case does not belong to evaluation run prompt".to_string(),
+            ));
+        }
+
         let id = Self::id();
         let now = Self::now();
         self.conn.execute(
@@ -247,7 +274,7 @@ impl Repository {
         test_case_id: &str,
     ) -> AppResult<Option<LatestCaseResultSummary>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, prompt_version_id, test_case_id, status FROM case_results WHERE prompt_version_id = ?1 AND test_case_id = ?2 ORDER BY created_at DESC LIMIT 1",
+            "SELECT id, prompt_version_id, test_case_id, status FROM case_results WHERE prompt_version_id = ?1 AND test_case_id = ?2 ORDER BY created_at DESC, rowid DESC LIMIT 1",
         )?;
         let mut rows = stmt.query(params![prompt_version_id, test_case_id])?;
         let Some(row) = rows.next()? else {
@@ -301,5 +328,51 @@ impl Repository {
         let result: String = row.get(0)?;
         let reason: String = row.get(1)?;
         Ok(Some(LlmJudgement::new(Self::parse_pass_fail(result), reason)))
+    }
+
+    fn prompt_version_belongs_to_prompt(
+        &self,
+        version_id: &str,
+        prompt_id: &str,
+    ) -> AppResult<bool> {
+        let count: i64 = self.conn.query_row(
+            "SELECT COUNT(*) FROM prompt_versions WHERE id = ?1 AND prompt_id = ?2",
+            params![version_id, prompt_id],
+            |row| row.get(0),
+        )?;
+        Ok(count == 1)
+    }
+
+    fn run_prompt_and_version(&self, run_id: &str) -> AppResult<Option<(String, String)>> {
+        self.conn
+            .query_row(
+                "SELECT prompt_id, prompt_version_id FROM evaluation_runs WHERE id = ?1",
+                params![run_id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .optional()
+            .map_err(AppError::from)
+    }
+
+    fn test_case_belongs_to_prompt(&self, case_id: &str, prompt_id: &str) -> AppResult<bool> {
+        let count: i64 = self.conn.query_row(
+            "SELECT COUNT(*) FROM test_cases WHERE id = ?1 AND prompt_id = ?2",
+            params![case_id, prompt_id],
+            |row| row.get(0),
+        )?;
+        Ok(count == 1)
+    }
+
+    #[cfg(test)]
+    pub fn set_case_result_created_at_for_test(
+        &self,
+        case_result_id: &str,
+        created_at: &str,
+    ) -> AppResult<()> {
+        self.conn.execute(
+            "UPDATE case_results SET created_at = ?1 WHERE id = ?2",
+            params![created_at, case_result_id],
+        )?;
+        Ok(())
     }
 }

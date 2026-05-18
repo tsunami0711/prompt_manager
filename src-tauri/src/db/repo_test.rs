@@ -2,6 +2,7 @@ use rusqlite::Connection;
 
 use crate::db::{migrations::migrate, repo::Repository};
 use crate::domain::PassFail;
+use crate::error::AppError;
 
 fn repo() -> Repository {
     let conn = Connection::open_in_memory().expect("open in-memory sqlite");
@@ -9,31 +10,16 @@ fn repo() -> Repository {
     Repository::new(conn)
 }
 
-#[test]
-fn creates_prompt_version_and_case() {
-    let repo = repo();
-    let prompt = repo
-        .create_prompt("Memory Extractor", "Extract durable memories")
-        .expect("create prompt");
-    let version = repo
-        .create_prompt_version(&prompt.id, "v1", "Extract memories", Some("first version"))
-        .expect("create version");
-    let case = repo
-        .create_test_case(
-            &prompt.id,
-            "City preference",
-            "I prefer Shanghai events",
-            "memory",
-            None,
-        )
-        .expect("create case");
-
-    assert_eq!(version.prompt_id, prompt.id);
-    assert_eq!(case.prompt_id, prompt.id);
+struct RunFixture {
+    repo: Repository,
+    prompt_id: String,
+    version_id: String,
+    case_id: String,
+    model_id: String,
+    run_id: String,
 }
 
-#[test]
-fn stores_latest_case_result_with_judgements_and_labels() {
+fn run_fixture() -> RunFixture {
     let repo = repo();
     let prompt = repo.create_prompt("Prompt", "").expect("prompt");
     let version = repo
@@ -64,11 +50,55 @@ fn stores_latest_case_result_with_judgements_and_labels() {
             "selected",
         )
         .expect("run");
+
+    RunFixture {
+        repo,
+        prompt_id: prompt.id,
+        version_id: version.id,
+        case_id: case.id,
+        model_id: model.id,
+        run_id: run.id,
+    }
+}
+
+#[test]
+fn creates_prompt_version_and_case() {
+    let repo = repo();
+    let prompt = repo
+        .create_prompt("Memory Extractor", "Extract durable memories")
+        .expect("create prompt");
+    let version = repo
+        .create_prompt_version(&prompt.id, "v1", "Extract memories", Some("first version"))
+        .expect("create version");
+    let case = repo
+        .create_test_case(
+            &prompt.id,
+            "City preference",
+            "I prefer Shanghai events",
+            "memory",
+            None,
+        )
+        .expect("create case");
+
+    assert_eq!(version.prompt_id, prompt.id);
+    assert_eq!(case.prompt_id, prompt.id);
+}
+
+#[test]
+fn stores_latest_case_result_with_judgements_and_labels() {
+    let RunFixture {
+        repo,
+        version_id,
+        case_id,
+        model_id,
+        run_id,
+        ..
+    } = run_fixture();
     let result = repo
         .create_case_result(
-            &run.id,
-            &version.id,
-            &case.id,
+            &run_id,
+            &version_id,
+            &case_id,
             "Hello Leo",
             "completed",
             None,
@@ -78,7 +108,7 @@ fn stores_latest_case_result_with_judgements_and_labels() {
 
     repo.create_llm_judgement(
         &result.id,
-        &model.id,
+        &model_id,
         "judge prompt",
         PassFail::Pass,
         "good",
@@ -89,7 +119,7 @@ fn stores_latest_case_result_with_judgements_and_labels() {
         .expect("human label");
 
     let latest = repo
-        .latest_case_result(&version.id, &case.id)
+        .latest_case_result(&version_id, &case_id)
         .expect("latest result")
         .expect("result exists");
 
@@ -102,4 +132,155 @@ fn stores_latest_case_result_with_judgements_and_labels() {
         latest.llm_judgement.expect("llm judgement").result,
         PassFail::Pass
     );
+}
+
+#[test]
+fn rejects_run_when_version_belongs_to_another_prompt() {
+    let RunFixture {
+        repo,
+        prompt_id,
+        model_id,
+        ..
+    } = run_fixture();
+    let other_prompt = repo.create_prompt("Other", "").expect("other prompt");
+    let other_version = repo
+        .create_prompt_version(&other_prompt.id, "v1", "Other", None)
+        .expect("other version");
+
+    let err = repo
+        .create_evaluation_run(
+            &prompt_id,
+            &other_version.id,
+            &model_id,
+            "human",
+            None,
+            None,
+            "selected",
+        )
+        .expect_err("mismatched prompt/version should fail");
+
+    assert!(matches!(err, AppError::Validation(_)));
+}
+
+#[test]
+fn rejects_case_result_when_run_version_or_case_crosses_prompts() {
+    let RunFixture {
+        repo,
+        run_id,
+        version_id,
+        ..
+    } = run_fixture();
+    let other_prompt = repo.create_prompt("Other", "").expect("other prompt");
+    let other_case = repo
+        .create_test_case(&other_prompt.id, "Other case", "input", "", None)
+        .expect("other case");
+    let other_version = repo
+        .create_prompt_version(&other_prompt.id, "v1", "Other", None)
+        .expect("other version");
+
+    let wrong_version_err = repo
+        .create_case_result(
+            &run_id,
+            &other_version.id,
+            &other_case.id,
+            "output",
+            "completed",
+            None,
+            1,
+        )
+        .expect_err("mismatched run/version should fail");
+    let wrong_case_err = repo
+        .create_case_result(
+            &run_id,
+            &version_id,
+            &other_case.id,
+            "output",
+            "completed",
+            None,
+            1,
+        )
+        .expect_err("mismatched run/case should fail");
+
+    assert!(matches!(wrong_version_err, AppError::Validation(_)));
+    assert!(matches!(wrong_case_err, AppError::Validation(_)));
+}
+
+#[test]
+fn latest_case_result_prefers_second_result_when_created_at_matches() {
+    let RunFixture {
+        repo,
+        run_id,
+        version_id,
+        case_id,
+        ..
+    } = run_fixture();
+    let first = repo
+        .create_case_result(
+            &run_id,
+            &version_id,
+            &case_id,
+            "first",
+            "completed",
+            None,
+            1,
+        )
+        .expect("first result");
+    let second = repo
+        .create_case_result(
+            &run_id,
+            &version_id,
+            &case_id,
+            "second",
+            "completed",
+            None,
+            2,
+        )
+        .expect("second result");
+    repo.set_case_result_created_at_for_test(&first.id, "2026-05-18T00:00:00Z")
+        .expect("pin first timestamp");
+    repo.set_case_result_created_at_for_test(&second.id, "2026-05-18T00:00:00Z")
+        .expect("pin second timestamp");
+
+    let latest = repo
+        .latest_case_result(&version_id, &case_id)
+        .expect("latest result")
+        .expect("result exists");
+
+    assert_eq!(latest.case_result_id, second.id);
+}
+
+#[test]
+fn upsert_human_label_overwrites_existing_label() {
+    let RunFixture {
+        repo,
+        run_id,
+        version_id,
+        case_id,
+        ..
+    } = run_fixture();
+    let result = repo
+        .create_case_result(
+            &run_id,
+            &version_id,
+            &case_id,
+            "Hello Leo",
+            "completed",
+            None,
+            42,
+        )
+        .expect("result");
+
+    repo.upsert_human_label(&result.id, PassFail::Pass, Some("first"))
+        .expect("first label");
+    repo.upsert_human_label(&result.id, PassFail::Fail, Some("second"))
+        .expect("second label");
+
+    let latest = repo
+        .latest_case_result(&version_id, &case_id)
+        .expect("latest result")
+        .expect("result exists");
+    let label = latest.human_label.expect("human label");
+
+    assert_eq!(label.result, PassFail::Fail);
+    assert_eq!(label.note.as_deref(), Some("second"));
 }

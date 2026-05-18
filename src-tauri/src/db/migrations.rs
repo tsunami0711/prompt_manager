@@ -58,7 +58,7 @@ pub fn migrate(conn: &Connection) -> rusqlite::Result<()> {
           judge_model_config_id TEXT REFERENCES model_configs(id),
           judge_prompt TEXT,
           case_scope TEXT NOT NULL CHECK(case_scope IN ('selected', 'all')),
-          status TEXT NOT NULL,
+          status TEXT NOT NULL CHECK(status IN ('pending', 'running', 'completed', 'error')),
           started_at TEXT,
           finished_at TEXT,
           created_at TEXT NOT NULL
@@ -87,7 +87,8 @@ pub fn migrate(conn: &Connection) -> rusqlite::Result<()> {
           raw_response TEXT NOT NULL DEFAULT '',
           status TEXT NOT NULL CHECK(status IN ('completed', 'error')),
           error_message TEXT,
-          created_at TEXT NOT NULL
+          created_at TEXT NOT NULL,
+          CHECK((status = 'completed' AND result IS NOT NULL) OR status = 'error')
         );
 
         CREATE TABLE IF NOT EXISTS human_labels (
@@ -102,6 +103,7 @@ pub fn migrate(conn: &Connection) -> rusqlite::Result<()> {
         CREATE INDEX IF NOT EXISTS idx_versions_prompt ON prompt_versions(prompt_id);
         CREATE INDEX IF NOT EXISTS idx_cases_prompt ON test_cases(prompt_id);
         CREATE INDEX IF NOT EXISTS idx_results_version_case ON case_results(prompt_version_id, test_case_id, created_at);
+        CREATE INDEX IF NOT EXISTS idx_llm_judgements_case_status_created ON llm_judgements(case_result_id, status, created_at);
         "#,
     )
 }
