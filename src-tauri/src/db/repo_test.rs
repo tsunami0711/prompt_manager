@@ -1,5 +1,6 @@
 use rusqlite::Connection;
 
+use crate::commands::RunCasesInput;
 use crate::db::{migrations::migrate, repo::Repository};
 use crate::domain::PassFail;
 use crate::error::AppError;
@@ -283,4 +284,83 @@ fn upsert_human_label_overwrites_existing_label() {
 
     assert_eq!(label.result, PassFail::Fail);
     assert_eq!(label.note.as_deref(), Some("second"));
+}
+
+#[test]
+fn build_run_plan_rejects_empty_case_selection() {
+    let RunFixture {
+        repo,
+        version_id,
+        model_id,
+        ..
+    } = run_fixture();
+    let input = RunCasesInput {
+        prompt_version_id: version_id,
+        case_ids: vec![],
+        run_model_config_id: model_id,
+        judge_mode: "human".to_string(),
+        judge_model_config_id: None,
+        judge_prompt: None,
+    };
+
+    let err = repo
+        .build_run_plan(&input)
+        .expect_err("empty case selection should fail");
+
+    assert!(matches!(err, AppError::Validation(_)));
+}
+
+#[test]
+fn can_mark_evaluation_run_error() {
+    let RunFixture { repo, run_id, .. } = run_fixture();
+
+    repo.mark_evaluation_run_error(&run_id)
+        .expect("mark run error");
+
+    assert_eq!(
+        repo.evaluation_run_status_for_test(&run_id)
+            .expect("run status"),
+        "error"
+    );
+}
+
+#[test]
+fn stores_llm_judgement_error() {
+    let RunFixture {
+        repo,
+        run_id,
+        version_id,
+        case_id,
+        model_id,
+        ..
+    } = run_fixture();
+    let result = repo
+        .create_case_result(
+            &run_id,
+            &version_id,
+            &case_id,
+            "Hello Leo",
+            "completed",
+            None,
+            42,
+        )
+        .expect("case result");
+
+    repo.create_llm_judgement_error(
+        &result.id,
+        &model_id,
+        "judge prompt",
+        "not json",
+        "json error",
+    )
+    .expect("llm judgement error");
+
+    let stored = repo
+        .llm_judgement_error_for_test(&result.id)
+        .expect("load judgement error")
+        .expect("judgement error exists");
+
+    assert_eq!(stored.0, "not json");
+    assert_eq!(stored.1, "json error");
+    assert_eq!(stored.2, "error");
 }

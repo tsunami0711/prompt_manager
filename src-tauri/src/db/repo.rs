@@ -300,6 +300,12 @@ impl Repository {
         &self,
         input: &crate::commands::RunCasesInput,
     ) -> AppResult<RunPlan> {
+        if input.case_ids.is_empty() {
+            return Err(AppError::Validation(
+                "select at least one case".to_string(),
+            ));
+        }
+
         let prompt_version = self.get_prompt_version(&input.prompt_version_id)?;
         let run_model = self.get_model_config(&input.run_model_config_id)?;
         if run_model.config_type != "run" {
@@ -426,6 +432,23 @@ impl Repository {
         Ok(())
     }
 
+    pub fn create_llm_judgement_error(
+        &self,
+        case_result_id: &str,
+        judge_model_config_id: &str,
+        judge_prompt: &str,
+        raw_response: &str,
+        error_message: &str,
+    ) -> AppResult<()> {
+        let id = Self::id();
+        let now = Self::now();
+        self.conn.execute(
+            "INSERT INTO llm_judgements (id, case_result_id, judge_model_config_id, judge_prompt, result, reason, raw_response, status, error_message, created_at) VALUES (?1, ?2, ?3, ?4, NULL, '', ?5, 'error', ?6, ?7)",
+            params![id, case_result_id, judge_model_config_id, judge_prompt, raw_response, error_message, now],
+        )?;
+        Ok(())
+    }
+
     pub fn finish_evaluation_run(&self, run_id: &str) -> AppResult<()> {
         let now = Self::now();
         let updated = self.conn.execute(
@@ -435,6 +458,20 @@ impl Repository {
         if updated == 0 {
             return Err(AppError::Validation(
                 "evaluation run does not exist".to_string(),
+            ));
+        }
+        Ok(())
+    }
+
+    pub fn mark_evaluation_run_error(&self, run_id: &str) -> AppResult<()> {
+        let now = Self::now();
+        let changed = self.conn.execute(
+            "UPDATE evaluation_runs SET status = 'error', finished_at = ?1 WHERE id = ?2",
+            params![now, run_id],
+        )?;
+        if changed == 0 {
+            return Err(AppError::Validation(
+                "evaluation run not found".to_string(),
             ));
         }
         Ok(())
@@ -643,5 +680,31 @@ impl Repository {
             params![created_at, case_result_id],
         )?;
         Ok(())
+    }
+
+    #[cfg(test)]
+    pub fn evaluation_run_status_for_test(&self, run_id: &str) -> AppResult<String> {
+        self.conn
+            .query_row(
+                "SELECT status FROM evaluation_runs WHERE id = ?1",
+                params![run_id],
+                |row| row.get(0),
+            )
+            .map_err(Into::into)
+    }
+
+    #[cfg(test)]
+    pub fn llm_judgement_error_for_test(
+        &self,
+        case_result_id: &str,
+    ) -> AppResult<Option<(String, String, String)>> {
+        self.conn
+            .query_row(
+                "SELECT raw_response, error_message, status FROM llm_judgements WHERE case_result_id = ?1",
+                params![case_result_id],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .optional()
+            .map_err(Into::into)
     }
 }

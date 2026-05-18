@@ -25,10 +25,10 @@ export function RunControls({
         <option value="llm">Judge by LLM</option>
       </select>
       <button className="button" disabled={selectedCount === 0} onClick={onRunSelected}>
-        Run Selected Case
+        Run Selected
       </button>
       <button className="button primary" onClick={onRunAll}>
-        Run All Case
+        Run All
       </button>
     </div>
   );
