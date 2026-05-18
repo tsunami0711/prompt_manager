@@ -98,6 +98,20 @@ impl Repository {
         })
     }
 
+    pub fn list_prompts(&self) -> AppResult<Vec<PromptRecord>> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT id, name, description FROM prompts ORDER BY updated_at DESC")?;
+        let rows = stmt.query_map([], |row| {
+            Ok(PromptRecord {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                description: row.get(2)?,
+            })
+        })?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
+    }
+
     pub fn create_prompt_version(
         &self,
         prompt_id: &str,
@@ -117,6 +131,49 @@ impl Repository {
             version_name: version_name.to_string(),
             content: content.to_string(),
         })
+    }
+
+    pub fn list_prompt_versions(&self, prompt_id: &str) -> AppResult<Vec<PromptVersionRecord>> {
+        let mut stmt = self.conn.prepare("SELECT id, prompt_id, version_name, content FROM prompt_versions WHERE prompt_id = ?1 ORDER BY created_at DESC")?;
+        let rows = stmt.query_map(params![prompt_id], |row| {
+            Ok(PromptVersionRecord {
+                id: row.get(0)?,
+                prompt_id: row.get(1)?,
+                version_name: row.get(2)?,
+                content: row.get(3)?,
+            })
+        })?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
+    }
+
+    pub fn update_prompt_version_content(
+        &self,
+        prompt_version_id: &str,
+        content: &str,
+    ) -> AppResult<PromptVersionRecord> {
+        let now = Self::now();
+        let updated = self.conn.execute(
+            "UPDATE prompt_versions SET content = ?1, updated_at = ?2 WHERE id = ?3",
+            params![content, now, prompt_version_id],
+        )?;
+        if updated == 0 {
+            return Err(AppError::Validation(
+                "prompt version does not exist".to_string(),
+            ));
+        }
+
+        let mut stmt = self.conn.prepare(
+            "SELECT id, prompt_id, version_name, content FROM prompt_versions WHERE id = ?1",
+        )?;
+        let record = stmt.query_row(params![prompt_version_id], |row| {
+            Ok(PromptVersionRecord {
+                id: row.get(0)?,
+                prompt_id: row.get(1)?,
+                version_name: row.get(2)?,
+                content: row.get(3)?,
+            })
+        })?;
+        Ok(record)
     }
 
     pub fn create_test_case(
@@ -139,6 +196,19 @@ impl Repository {
             title: title.to_string(),
             input: input.to_string(),
         })
+    }
+
+    pub fn list_test_cases(&self, prompt_id: &str) -> AppResult<Vec<TestCaseRecord>> {
+        let mut stmt = self.conn.prepare("SELECT id, prompt_id, title, input FROM test_cases WHERE prompt_id = ?1 ORDER BY created_at ASC")?;
+        let rows = stmt.query_map(params![prompt_id], |row| {
+            Ok(TestCaseRecord {
+                id: row.get(0)?,
+                prompt_id: row.get(1)?,
+                title: row.get(2)?,
+                input: row.get(3)?,
+            })
+        })?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
     }
 
     pub fn create_model_config(
@@ -167,6 +237,23 @@ impl Repository {
             temperature,
             max_tokens,
         })
+    }
+
+    pub fn list_model_configs(&self, config_type: &str) -> AppResult<Vec<ModelConfigRecord>> {
+        let mut stmt = self.conn.prepare("SELECT id, name, config_type, base_url, model, api_key_ref, temperature, max_tokens FROM model_configs WHERE config_type = ?1 ORDER BY name ASC")?;
+        let rows = stmt.query_map(params![config_type], |row| {
+            Ok(ModelConfigRecord {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                config_type: row.get(2)?,
+                base_url: row.get(3)?,
+                model: row.get(4)?,
+                api_key_ref: row.get(5)?,
+                temperature: row.get(6)?,
+                max_tokens: row.get(7)?,
+            })
+        })?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
     }
 
     pub fn create_evaluation_run(
@@ -294,6 +381,23 @@ impl Repository {
             human_label,
             llm_judgement,
         }))
+    }
+
+    pub fn list_latest_case_results_for_prompt(
+        &self,
+        prompt_id: &str,
+    ) -> AppResult<Vec<LatestCaseResultSummary>> {
+        let versions = self.list_prompt_versions(prompt_id)?;
+        let cases = self.list_test_cases(prompt_id)?;
+        let mut summaries = Vec::new();
+        for version in versions {
+            for test_case in &cases {
+                if let Some(summary) = self.latest_case_result(&version.id, &test_case.id)? {
+                    summaries.push(summary);
+                }
+            }
+        }
+        Ok(summaries)
     }
 
     fn parse_pass_fail(value: String) -> PassFail {

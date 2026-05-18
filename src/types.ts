@@ -26,3 +26,38 @@ export interface FinalResult {
   result: FinalResultValue;
   source: FinalResultSource;
 }
+
+export interface PromptRecord {
+  id: string;
+  name: string;
+  description: string;
+}
+
+export interface PromptVersionRecord {
+  id: string;
+  promptId: string;
+  versionName: string;
+  content: string;
+  note?: string | null;
+}
+
+export interface TestCaseRecord {
+  id: string;
+  promptId: string;
+  title: string;
+  input: string;
+  tags?: string;
+  note?: string | null;
+  enabled?: boolean;
+}
+
+export interface ModelConfigRecord {
+  id: string;
+  name: string;
+  configType: "run" | "judge";
+  baseUrl: string;
+  model: string;
+  apiKeyRef: string;
+  temperature: number;
+  maxTokens: number;
+}
