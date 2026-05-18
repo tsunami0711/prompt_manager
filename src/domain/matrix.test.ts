@@ -17,4 +17,20 @@ describe("classifyTrend", () => {
   it("detects failing when all completed results fail", () => {
     expect(classifyTrend(["fail", "fail"])).toBe("failing");
   });
+
+  it("detects regression from pass to error", () => {
+    expect(classifyTrend(["pass", "error"])).toBe("regression");
+  });
+
+  it("detects improvement from error to pass", () => {
+    expect(classifyTrend(["error", "pass"])).toBe("improved");
+  });
+
+  it("returns mixed when all values are pending", () => {
+    expect(classifyTrend(["pending", "pending"])).toBe("mixed");
+  });
+
+  it("returns mixed when failures end in error", () => {
+    expect(classifyTrend(["fail", "error"])).toBe("mixed");
+  });
 });

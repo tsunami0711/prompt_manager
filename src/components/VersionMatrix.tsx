@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { computeFinalResult } from "../domain/finalResult";
 import { classifyTrend, type Trend } from "../domain/matrix";
 import type {
@@ -37,6 +37,7 @@ export function VersionMatrix({
   const [selectedCaseIds, setSelectedCaseIds] = useState<Set<string>>(() => new Set());
   const [filter, setFilter] = useState<MatrixFilter>("all");
   const [judgeMode, setJudgeMode] = useState<JudgeMode>("human");
+  const selectAllRef = useRef<HTMLInputElement>(null);
 
   const resultByVersionAndCase = useMemo(() => {
     const map = new Map<string, CaseResultSummary>();
@@ -72,8 +73,15 @@ export function VersionMatrix({
   });
 
   const visibleCaseIds = visibleRows.map((row) => row.testCase.id);
-  const allVisibleSelected =
+  const isAllVisibleSelected =
     visibleCaseIds.length > 0 && visibleCaseIds.every((id) => selectedCaseIds.has(id));
+  const isSomeVisibleSelected = visibleCaseIds.some((id) => selectedCaseIds.has(id));
+
+  useEffect(() => {
+    if (selectAllRef.current) {
+      selectAllRef.current.indeterminate = isSomeVisibleSelected && !isAllVisibleSelected;
+    }
+  }, [isAllVisibleSelected, isSomeVisibleSelected]);
 
   function toggleCase(id: string) {
     setSelectedCaseIds((current) => {
@@ -91,7 +99,7 @@ export function VersionMatrix({
     setSelectedCaseIds((current) => {
       const next = new Set(current);
 
-      if (allVisibleSelected) {
+      if (isAllVisibleSelected) {
         visibleCaseIds.forEach((id) => next.delete(id));
       } else {
         visibleCaseIds.forEach((id) => next.add(id));
@@ -134,9 +142,15 @@ export function VersionMatrix({
             <tr>
               <th className="select-column">
                 <input
+                  ref={selectAllRef}
                   type="checkbox"
-                  aria-label="Select all cases"
-                  checked={allVisibleSelected}
+                  aria-label="Select all visible cases"
+                  aria-checked={
+                    isSomeVisibleSelected && !isAllVisibleSelected
+                      ? "mixed"
+                      : isAllVisibleSelected
+                  }
+                  checked={isAllVisibleSelected}
                   onChange={toggleVisibleCases}
                 />
               </th>
