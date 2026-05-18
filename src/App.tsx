@@ -180,8 +180,8 @@ function fallbackCasesForPrompt(promptId: string) {
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("editor");
-  const [selectedPromptId, setSelectedPromptId] = useState<string | null>("p1");
-  const [selectedVersionId, setSelectedVersionId] = useState<string | null>("v1");
+  const [selectedPromptId, setSelectedPromptId] = useState<string | null>(null);
+  const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
   const [prompts, setPrompts] = useState<PromptRecord[]>(fallbackPrompts);
   const [versions, setVersions] = useState<PromptVersionRecord[]>(fallbackVersions);
   const [cases, setCases] = useState<TestCaseRecord[]>(fallbackCases);
@@ -198,7 +198,11 @@ export default function App() {
         const loadedPrompts = await listPrompts();
         if (cancelled || loadedPrompts.length === 0) return;
         setPrompts(loadedPrompts);
-        setSelectedPromptId((current) => current ?? loadedPrompts[0]?.id ?? null);
+        setSelectedPromptId((current) =>
+          current && loadedPrompts.some((prompt) => prompt.id === current)
+            ? current
+            : (loadedPrompts[0]?.id ?? null)
+        );
       } catch {
         if (cancelled) return;
         setPrompts(fallbackPrompts);
@@ -260,7 +264,7 @@ export default function App() {
 
   const visibleCases = useMemo(
     () => cases.filter((testCase) => testCase.promptId === selectedPromptId),
-    [selectedPromptId]
+    [cases, selectedPromptId]
   );
 
   const selectedVersion = useMemo(
