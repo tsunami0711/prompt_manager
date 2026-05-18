@@ -1,3 +1,4 @@
+use serde::Deserialize;
 use tauri::State;
 
 use crate::db::repo::{
@@ -5,6 +6,17 @@ use crate::db::repo::{
 };
 use crate::error::CommandError;
 use crate::state::AppState;
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RunCasesInput {
+    pub prompt_version_id: String,
+    pub case_ids: Vec<String>,
+    pub run_model_config_id: String,
+    pub judge_mode: String,
+    pub judge_model_config_id: Option<String>,
+    pub judge_prompt: Option<String>,
+}
 
 #[tauri::command]
 pub fn create_prompt(
@@ -146,5 +158,21 @@ pub fn list_latest_case_results(
 ) -> Result<Vec<LatestCaseResultSummary>, CommandError> {
     state
         .with_repo(|repo| repo.list_latest_case_results_for_prompt(&prompt_id))
+        .map_err(Into::into)
+}
+
+#[tauri::command]
+pub async fn run_selected_cases(
+    state: State<'_, AppState>,
+    input: RunCasesInput,
+) -> Result<(), CommandError> {
+    if input.case_ids.is_empty() {
+        return Err(CommandError {
+            message: "select at least one case".to_string(),
+        });
+    }
+
+    crate::evaluation::run_selected_cases(&state, input)
+        .await
         .map_err(Into::into)
 }

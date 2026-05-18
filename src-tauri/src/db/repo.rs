@@ -67,6 +67,21 @@ pub struct LatestCaseResultSummary {
     pub llm_judgement: Option<LlmJudgement>,
 }
 
+#[derive(Debug, Clone)]
+pub struct JudgePlan {
+    pub model: ModelConfigRecord,
+    pub prompt: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct RunPlan {
+    pub run: EvaluationRunRecord,
+    pub prompt_version: PromptVersionRecord,
+    pub run_model: ModelConfigRecord,
+    pub judge: Option<JudgePlan>,
+    pub cases: Vec<TestCaseRecord>,
+}
+
 pub struct Repository {
     conn: Connection,
 }
@@ -281,6 +296,78 @@ impl Repository {
         Ok(EvaluationRunRecord { id })
     }
 
+    pub fn build_run_plan(
+        &self,
+        input: &crate::commands::RunCasesInput,
+    ) -> AppResult<RunPlan> {
+        let prompt_version = self.get_prompt_version(&input.prompt_version_id)?;
+        let run_model = self.get_model_config(&input.run_model_config_id)?;
+        if run_model.config_type != "run" {
+            return Err(AppError::Validation(
+                "run model config must have type 'run'".to_string(),
+            ));
+        }
+
+        let cases = self.get_test_cases_by_ids(&input.case_ids)?;
+        for test_case in &cases {
+            if test_case.prompt_id != prompt_version.prompt_id {
+                return Err(AppError::Validation(
+                    "selected case does not belong to prompt version prompt".to_string(),
+                ));
+            }
+        }
+
+        let judge = match input.judge_mode.as_str() {
+            "human" => None,
+            "llm" => {
+                let judge_model_id = input.judge_model_config_id.as_deref().ok_or_else(|| {
+                    AppError::Validation("judge model is required for LLM judge".to_string())
+                })?;
+                let judge_prompt = input
+                    .judge_prompt
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|prompt| !prompt.is_empty())
+                    .ok_or_else(|| {
+                        AppError::Validation("judge prompt is required for LLM judge".to_string())
+                    })?;
+                let model = self.get_model_config(judge_model_id)?;
+                if model.config_type != "judge" {
+                    return Err(AppError::Validation(
+                        "judge model config must have type 'judge'".to_string(),
+                    ));
+                }
+                Some(JudgePlan {
+                    model,
+                    prompt: judge_prompt.to_string(),
+                })
+            }
+            _ => {
+                return Err(AppError::Validation(
+                    "judge_mode must be either 'human' or 'llm'".to_string(),
+                ))
+            }
+        };
+
+        let run = self.create_evaluation_run(
+            &prompt_version.prompt_id,
+            &prompt_version.id,
+            &run_model.id,
+            &input.judge_mode,
+            judge.as_ref().map(|plan| plan.model.id.as_str()),
+            judge.as_ref().map(|plan| plan.prompt.as_str()),
+            "selected",
+        )?;
+
+        Ok(RunPlan {
+            run,
+            prompt_version,
+            run_model,
+            judge,
+            cases,
+        })
+    }
+
     pub fn create_case_result(
         &self,
         run_id: &str,
@@ -336,6 +423,20 @@ impl Repository {
             "INSERT INTO llm_judgements (id, case_result_id, judge_model_config_id, judge_prompt, result, reason, raw_response, status, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 'completed', ?8)",
             params![id, case_result_id, judge_model_config_id, judge_prompt, result.as_str(), reason, raw_response, now],
         )?;
+        Ok(())
+    }
+
+    pub fn finish_evaluation_run(&self, run_id: &str) -> AppResult<()> {
+        let now = Self::now();
+        let updated = self.conn.execute(
+            "UPDATE evaluation_runs SET status = 'completed', finished_at = ?1 WHERE id = ?2",
+            params![now, run_id],
+        )?;
+        if updated == 0 {
+            return Err(AppError::Validation(
+                "evaluation run does not exist".to_string(),
+            ));
+        }
         Ok(())
     }
 
@@ -465,6 +566,70 @@ impl Repository {
             |row| row.get(0),
         )?;
         Ok(count == 1)
+    }
+
+    fn get_prompt_version(&self, prompt_version_id: &str) -> AppResult<PromptVersionRecord> {
+        self.conn
+            .query_row(
+                "SELECT id, prompt_id, version_name, content FROM prompt_versions WHERE id = ?1",
+                params![prompt_version_id],
+                |row| {
+                    Ok(PromptVersionRecord {
+                        id: row.get(0)?,
+                        prompt_id: row.get(1)?,
+                        version_name: row.get(2)?,
+                        content: row.get(3)?,
+                    })
+                },
+            )
+            .optional()?
+            .ok_or_else(|| AppError::Validation("prompt version does not exist".to_string()))
+    }
+
+    fn get_model_config(&self, model_config_id: &str) -> AppResult<ModelConfigRecord> {
+        self.conn
+            .query_row(
+                "SELECT id, name, config_type, base_url, model, api_key_ref, temperature, max_tokens FROM model_configs WHERE id = ?1",
+                params![model_config_id],
+                |row| {
+                    Ok(ModelConfigRecord {
+                        id: row.get(0)?,
+                        name: row.get(1)?,
+                        config_type: row.get(2)?,
+                        base_url: row.get(3)?,
+                        model: row.get(4)?,
+                        api_key_ref: row.get(5)?,
+                        temperature: row.get(6)?,
+                        max_tokens: row.get(7)?,
+                    })
+                },
+            )
+            .optional()?
+            .ok_or_else(|| AppError::Validation("model config does not exist".to_string()))
+    }
+
+    fn get_test_cases_by_ids(&self, case_ids: &[String]) -> AppResult<Vec<TestCaseRecord>> {
+        let mut cases = Vec::with_capacity(case_ids.len());
+        for case_id in case_ids {
+            let test_case = self
+                .conn
+                .query_row(
+                    "SELECT id, prompt_id, title, input FROM test_cases WHERE id = ?1",
+                    params![case_id],
+                    |row| {
+                        Ok(TestCaseRecord {
+                            id: row.get(0)?,
+                            prompt_id: row.get(1)?,
+                            title: row.get(2)?,
+                            input: row.get(3)?,
+                        })
+                    },
+                )
+                .optional()?
+                .ok_or_else(|| AppError::Validation("test case does not exist".to_string()))?;
+            cases.push(test_case);
+        }
+        Ok(cases)
     }
 
     #[cfg(test)]

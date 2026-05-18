@@ -3,6 +3,7 @@ mod commands;
 mod db;
 mod domain;
 mod error;
+mod evaluation;
 mod judge;
 mod model_client;
 mod secrets;
@@ -25,7 +26,8 @@ fn main() {
             commands::update_prompt_version_content,
             commands::create_model_config,
             commands::list_model_configs,
-            commands::list_latest_case_results
+            commands::list_latest_case_results,
+            commands::run_selected_cases
         ])
         .run(tauri::generate_context!())
         .expect("failed to run Prompt Manager");

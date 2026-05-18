@@ -71,3 +71,14 @@ export async function listModelConfigs(configType: "run" | "judge") {
 export async function listLatestCaseResults(promptId: string) {
   return invoke<CaseResultSummary[]>("list_latest_case_results", { promptId });
 }
+
+export async function runSelectedCases(input: {
+  promptVersionId: string;
+  caseIds: string[];
+  runModelConfigId: string;
+  judgeMode: "human" | "llm";
+  judgeModelConfigId?: string | null;
+  judgePrompt?: string | null;
+}) {
+  return invoke<void>("run_selected_cases", { input });
+}
