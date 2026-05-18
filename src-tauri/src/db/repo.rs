@@ -67,6 +67,20 @@ pub struct LatestCaseResultSummary {
     pub llm_judgement: Option<LlmJudgement>,
 }
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RunHistoryItem {
+    pub id: String,
+    pub status: String,
+    pub prompt_version_name: String,
+    pub case_scope: String,
+    pub judge_mode: String,
+    pub started_at: String,
+    pub finished_at: Option<String>,
+    pub success_count: i64,
+    pub error_count: i64,
+}
+
 #[derive(Debug, Clone)]
 pub struct JudgePlan {
     pub model: ModelConfigRecord,
@@ -290,7 +304,7 @@ impl Repository {
         let id = Self::id();
         let now = Self::now();
         self.conn.execute(
-            "INSERT INTO evaluation_runs (id, prompt_id, prompt_version_id, run_model_config_id, judge_mode, judge_model_config_id, judge_prompt, case_scope, status, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 'running', ?9)",
+            "INSERT INTO evaluation_runs (id, prompt_id, prompt_version_id, run_model_config_id, judge_mode, judge_model_config_id, judge_prompt, case_scope, status, started_at, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 'running', ?9, ?9)",
             params![id, prompt_id, version_id, run_model_config_id, judge_mode, judge_model_config_id, judge_prompt, case_scope, now],
         )?;
         Ok(EvaluationRunRecord { id })
@@ -536,6 +550,42 @@ impl Repository {
             }
         }
         Ok(summaries)
+    }
+
+    pub fn list_run_history_for_prompt(&self, prompt_id: &str) -> AppResult<Vec<RunHistoryItem>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT
+                er.id,
+                er.status,
+                pv.version_name,
+                er.case_scope,
+                er.judge_mode,
+                COALESCE(er.started_at, er.created_at) AS started_at,
+                er.finished_at,
+                COALESCE(SUM(CASE WHEN cr.status = 'completed' THEN 1 ELSE 0 END), 0) AS success_count,
+                COALESCE(SUM(CASE WHEN cr.status = 'error' THEN 1 ELSE 0 END), 0) AS error_count
+             FROM evaluation_runs er
+             JOIN prompt_versions pv ON pv.id = er.prompt_version_id
+             LEFT JOIN case_results cr ON cr.evaluation_run_id = er.id
+             WHERE er.prompt_id = ?1
+             GROUP BY er.id, er.status, pv.version_name, er.case_scope, er.judge_mode, er.started_at, er.created_at, er.finished_at
+             ORDER BY er.created_at DESC
+             LIMIT 50",
+        )?;
+        let rows = stmt.query_map(params![prompt_id], |row| {
+            Ok(RunHistoryItem {
+                id: row.get(0)?,
+                status: row.get(1)?,
+                prompt_version_name: row.get(2)?,
+                case_scope: row.get(3)?,
+                judge_mode: row.get(4)?,
+                started_at: row.get(5)?,
+                finished_at: row.get(6)?,
+                success_count: row.get(7)?,
+                error_count: row.get(8)?,
+            })
+        })?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
     }
 
     fn parse_pass_fail(value: String) -> PassFail {

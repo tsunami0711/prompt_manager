@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
   CaseResultSummary,
+  RunHistoryItem,
   ModelConfigRecord,
   PassFail,
   PromptRecord,
@@ -71,6 +72,10 @@ export async function listModelConfigs(configType: "run" | "judge") {
 
 export async function listLatestCaseResults(promptId: string) {
   return invoke<CaseResultSummary[]>("list_latest_case_results", { promptId });
+}
+
+export async function listRunHistory(promptId: string) {
+  return invoke<RunHistoryItem[]>("list_run_history", { promptId });
 }
 
 export async function upsertHumanLabel(input: {

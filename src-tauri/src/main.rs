@@ -27,6 +27,7 @@ fn main() {
             commands::create_model_config,
             commands::list_model_configs,
             commands::list_latest_case_results,
+            commands::list_run_history,
             commands::upsert_human_label,
             commands::run_selected_cases
         ])

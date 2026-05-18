@@ -2,7 +2,8 @@ use serde::Deserialize;
 use tauri::State;
 
 use crate::db::repo::{
-    LatestCaseResultSummary, ModelConfigRecord, PromptRecord, PromptVersionRecord, TestCaseRecord,
+    LatestCaseResultSummary, ModelConfigRecord, PromptRecord, PromptVersionRecord, RunHistoryItem,
+    TestCaseRecord,
 };
 use crate::domain::PassFail;
 use crate::error::CommandError;
@@ -159,6 +160,16 @@ pub fn list_latest_case_results(
 ) -> Result<Vec<LatestCaseResultSummary>, CommandError> {
     state
         .with_repo(|repo| repo.list_latest_case_results_for_prompt(&prompt_id))
+        .map_err(Into::into)
+}
+
+#[tauri::command]
+pub fn list_run_history(
+    state: State<'_, AppState>,
+    prompt_id: String,
+) -> Result<Vec<RunHistoryItem>, CommandError> {
+    state
+        .with_repo(|repo| repo.list_run_history_for_prompt(&prompt_id))
         .map_err(Into::into)
 }
 

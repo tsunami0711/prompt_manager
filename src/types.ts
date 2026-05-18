@@ -2,6 +2,8 @@ export type PassFail = "pass" | "fail";
 export type FinalResultValue = PassFail | "pending" | "error";
 export type FinalResultSource = "human" | "llm" | "run" | "none";
 export type CaseRunStatus = "pending" | "running" | "completed" | "error";
+export type RunCaseScope = "selected" | "all";
+export type JudgeMode = "human" | "llm";
 
 export interface LlmJudgementSummary {
   result: PassFail;
@@ -60,4 +62,16 @@ export interface ModelConfigRecord {
   apiKeyRef: string;
   temperature: number;
   maxTokens: number;
+}
+
+export interface RunHistoryItem {
+  id: string;
+  status: CaseRunStatus;
+  promptVersionName: string;
+  caseScope: RunCaseScope;
+  judgeMode: JudgeMode;
+  startedAt: string;
+  finishedAt: string | null;
+  successCount: number;
+  errorCount: number;
 }

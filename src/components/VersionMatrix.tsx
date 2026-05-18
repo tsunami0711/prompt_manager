@@ -4,6 +4,7 @@ import { classifyTrend, type Trend } from "../domain/matrix";
 import type {
   CaseResultSummary,
   FinalResultValue,
+  JudgeMode,
   PromptVersionRecord,
   TestCaseRecord
 } from "../types";
@@ -11,7 +12,6 @@ import { ResultBadge } from "./ResultBadge";
 import { RunControls } from "./RunControls";
 
 type MatrixFilter = "all" | "failed" | "regression";
-type JudgeMode = "human" | "llm";
 
 interface MatrixRow {
   testCase: TestCaseRecord;
@@ -28,11 +28,15 @@ const filters: Array<{ label: string; value: MatrixFilter }> = [
 export function VersionMatrix({
   versions,
   cases,
-  results
+  results,
+  onRunSelected,
+  onRunAll
 }: {
   versions: PromptVersionRecord[];
   cases: TestCaseRecord[];
   results: CaseResultSummary[];
+  onRunSelected?: (caseIds: string[], judgeMode: JudgeMode) => void;
+  onRunAll?: (caseIds: string[], judgeMode: JudgeMode) => void;
 }) {
   const [selectedCaseIds, setSelectedCaseIds] = useState<Set<string>>(() => new Set());
   const [filter, setFilter] = useState<MatrixFilter>("all");
@@ -130,8 +134,8 @@ export function VersionMatrix({
             selectedCount={selectedCaseIds.size}
             judgeMode={judgeMode}
             onJudgeModeChange={setJudgeMode}
-            onRunSelected={() => undefined}
-            onRunAll={() => undefined}
+            onRunSelected={() => onRunSelected?.(Array.from(selectedCaseIds), judgeMode)}
+            onRunAll={() => onRunAll?.(cases.map((testCase) => testCase.id), judgeMode)}
           />
         </div>
       </div>

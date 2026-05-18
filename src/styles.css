@@ -132,7 +132,7 @@ select {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-bottom: 16px;
+  margin-bottom: 10px;
   border-bottom: 1px solid #e2e8f0;
 }
 
@@ -143,6 +143,12 @@ select {
   color: #475569;
   background: transparent;
   white-space: nowrap;
+}
+
+.workspace-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
 }
 
 .editor-grid {
@@ -700,4 +706,150 @@ select {
 
 .case-results-empty {
   padding: 14px 12px;
+}
+
+.results-stack,
+.history-panel {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.history-list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  list-style: none;
+}
+
+.history-row {
+  display: grid;
+  grid-template-columns: 12px minmax(160px, 1fr) repeat(5, max-content);
+  gap: 10px;
+  align-items: center;
+  min-height: 52px;
+  padding: 9px 12px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #ffffff;
+}
+
+.history-row:last-child {
+  border-bottom: 0;
+}
+
+.status-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: #94a3b8;
+}
+
+.status-completed {
+  background: #059669;
+}
+
+.status-running,
+.status-pending {
+  background: #2563eb;
+}
+
+.status-error {
+  background: #ea580c;
+}
+
+.history-main {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.history-main strong,
+.history-main small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-main strong {
+  color: #0f172a;
+  font-size: 14px;
+}
+
+.history-main small {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.history-meta,
+.history-count {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  padding: 0 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.history-meta {
+  color: #475569;
+  background: #f1f5f9;
+}
+
+.history-count.success {
+  color: #065f46;
+  background: #d1fae5;
+}
+
+.history-count.error {
+  color: #9a3412;
+  background: #ffedd5;
+}
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgb(15 23 42 / 0.34);
+}
+
+.config-dialog {
+  width: min(520px, 100%);
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 18px 44px rgb(15 23 42 / 0.18);
+}
+
+.config-form {
+  display: grid;
+  gap: 12px;
+}
+
+.config-form label {
+  display: grid;
+  gap: 6px;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.config-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 6px;
 }
