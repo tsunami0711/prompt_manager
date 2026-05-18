@@ -23,7 +23,7 @@ export async function createPrompt(input: {
   name: string;
   description: string;
 }) {
-  return invoke("create_prompt", input);
+  return invoke<PromptRecord>("create_prompt", input);
 }
 
 export async function createPromptVersion(input: {
@@ -32,7 +32,7 @@ export async function createPromptVersion(input: {
   content: string;
   note?: string | null;
 }) {
-  return invoke("create_prompt_version", input);
+  return invoke<PromptVersionRecord>("create_prompt_version", input);
 }
 
 export async function createTestCase(input: {
@@ -42,7 +42,7 @@ export async function createTestCase(input: {
   tags: string;
   note?: string | null;
 }) {
-  return invoke("create_test_case", input);
+  return invoke<TestCaseRecord>("create_test_case", input);
 }
 
 export async function updatePromptVersionContent(input: {
