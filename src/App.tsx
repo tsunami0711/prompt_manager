@@ -3,6 +3,7 @@ import { CaseManager } from "./components/CaseManager";
 import { PromptEditor } from "./components/PromptEditor";
 import { Sidebar } from "./components/Sidebar";
 import { Tabs, type WorkspaceTab } from "./components/Tabs";
+import { VersionCaseResults } from "./components/VersionCaseResults";
 import { VersionMatrix } from "./components/VersionMatrix";
 import type {
   CaseResultSummary,
@@ -133,6 +134,7 @@ export default function App() {
   const [selectedPromptId, setSelectedPromptId] = useState<string | null>("p1");
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>("v1");
   const [versions, setVersions] = useState<PromptVersionRecord[]>(initialVersions);
+  const [resultSummaries, setResultSummaries] = useState<CaseResultSummary[]>(fixtureResults);
 
   const visibleVersions = useMemo(
     () => versions.filter((version) => version.promptId === selectedPromptId),
@@ -163,6 +165,16 @@ export default function App() {
     );
   }
 
+  function labelCaseResult(caseResultId: string, result: PassFail) {
+    setResultSummaries((current) =>
+      current.map((summary) =>
+        summary.caseResultId === caseResultId
+          ? { ...summary, humanLabel: { result, note: null } }
+          : summary
+      )
+    );
+  }
+
   return (
     <main className="app-layout">
       <Sidebar
@@ -185,7 +197,15 @@ export default function App() {
           <VersionMatrix
             versions={visibleVersions}
             cases={visibleCases}
-            results={fixtureResults}
+            results={resultSummaries}
+          />
+        )}
+        {activeTab === "results" && (
+          <VersionCaseResults
+            cases={visibleCases}
+            results={resultSummaries}
+            selectedVersionId={selectedVersionId}
+            onLabel={labelCaseResult}
           />
         )}
       </section>

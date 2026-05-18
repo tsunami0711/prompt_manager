@@ -4,6 +4,7 @@ use tauri::State;
 use crate::db::repo::{
     LatestCaseResultSummary, ModelConfigRecord, PromptRecord, PromptVersionRecord, TestCaseRecord,
 };
+use crate::domain::PassFail;
 use crate::error::CommandError;
 use crate::state::AppState;
 
@@ -158,6 +159,28 @@ pub fn list_latest_case_results(
 ) -> Result<Vec<LatestCaseResultSummary>, CommandError> {
     state
         .with_repo(|repo| repo.list_latest_case_results_for_prompt(&prompt_id))
+        .map_err(Into::into)
+}
+
+#[tauri::command]
+pub fn upsert_human_label(
+    state: State<'_, AppState>,
+    case_result_id: String,
+    result: String,
+    note: Option<String>,
+) -> Result<(), CommandError> {
+    let result = match result.as_str() {
+        "pass" => PassFail::Pass,
+        "fail" => PassFail::Fail,
+        _ => {
+            return Err(CommandError {
+                message: "result must be either 'pass' or 'fail'".to_string(),
+            });
+        }
+    };
+
+    state
+        .with_repo(|repo| repo.upsert_human_label(&case_result_id, result, note.as_deref()))
         .map_err(Into::into)
 }
 

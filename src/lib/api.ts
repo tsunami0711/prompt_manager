@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type {
   CaseResultSummary,
   ModelConfigRecord,
+  PassFail,
   PromptRecord,
   PromptVersionRecord,
   TestCaseRecord
@@ -70,6 +71,14 @@ export async function listModelConfigs(configType: "run" | "judge") {
 
 export async function listLatestCaseResults(promptId: string) {
   return invoke<CaseResultSummary[]>("list_latest_case_results", { promptId });
+}
+
+export async function upsertHumanLabel(input: {
+  caseResultId: string;
+  result: PassFail;
+  note?: string | null;
+}) {
+  return invoke<void>("upsert_human_label", input);
 }
 
 export async function runSelectedCases(input: {
