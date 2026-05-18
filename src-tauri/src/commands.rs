@@ -93,21 +93,40 @@ pub fn create_model_config(
     temperature: f64,
     max_tokens: i64,
 ) -> Result<ModelConfigRecord, CommandError> {
+    if config_type != "run" && config_type != "judge" {
+        return Err(CommandError {
+            message: "config_type must be either 'run' or 'judge'".to_string(),
+        });
+    }
+
     let api_key_ref = format!("model-config-{}", uuid::Uuid::new_v4());
     crate::secrets::save_api_key(&api_key_ref, &api_key).map_err(CommandError::from)?;
-    state
-        .with_repo(|repo| {
-            repo.create_model_config(
-                &name,
-                &config_type,
-                &base_url,
-                &model,
-                &api_key_ref,
-                temperature,
-                max_tokens,
-            )
-        })
-        .map_err(Into::into)
+    let created = state.with_repo(|repo| {
+        repo.create_model_config(
+            &name,
+            &config_type,
+            &base_url,
+            &model,
+            &api_key_ref,
+            temperature,
+            max_tokens,
+        )
+    });
+
+    match created {
+        Ok(record) => Ok(record),
+        Err(error) => {
+            if let Err(cleanup_error) = crate::secrets::delete_api_key(&api_key_ref) {
+                return Err(CommandError {
+                    message: format!(
+                        "failed to create model config: {}; additionally failed to clean up API key: {}",
+                        error, cleanup_error
+                    ),
+                });
+            }
+            Err(error.into())
+        }
+    }
 }
 
 #[tauri::command]

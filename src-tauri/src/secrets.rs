@@ -17,3 +17,11 @@ pub fn load_api_key(api_key_ref: &str) -> AppResult<String> {
         .get_password()
         .map_err(|err| AppError::Validation(err.to_string()))
 }
+
+pub fn delete_api_key(api_key_ref: &str) -> AppResult<()> {
+    let entry = keyring::Entry::new(SERVICE, api_key_ref)
+        .map_err(|err| AppError::Validation(err.to_string()))?;
+    entry
+        .delete_credential()
+        .map_err(|err| AppError::Validation(err.to_string()))
+}
