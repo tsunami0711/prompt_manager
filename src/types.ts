@@ -20,6 +20,8 @@ export interface CaseResultSummary {
   promptVersionId: string;
   testCaseId: string;
   runStatus: CaseRunStatus;
+  output?: string;
+  errorMessage?: string | null;
   llmJudgement: LlmJudgementSummary | null;
   llmJudgementError?: string | null;
   humanLabel: HumanLabelSummary | null;

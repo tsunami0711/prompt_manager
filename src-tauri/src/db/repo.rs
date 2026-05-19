@@ -64,6 +64,8 @@ pub struct LatestCaseResultSummary {
     pub prompt_version_id: String,
     pub test_case_id: String,
     pub run_status: String,
+    pub output: String,
+    pub error_message: Option<String>,
     pub human_label: Option<HumanLabel>,
     pub llm_judgement: Option<LlmJudgement>,
     pub llm_judgement_error: Option<String>,
@@ -522,7 +524,7 @@ impl Repository {
         test_case_id: &str,
     ) -> AppResult<Option<LatestCaseResultSummary>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, prompt_version_id, test_case_id, status FROM case_results WHERE prompt_version_id = ?1 AND test_case_id = ?2 ORDER BY created_at DESC, rowid DESC LIMIT 1",
+            "SELECT id, prompt_version_id, test_case_id, status, output, error_message FROM case_results WHERE prompt_version_id = ?1 AND test_case_id = ?2 ORDER BY created_at DESC, rowid DESC LIMIT 1",
         )?;
         let mut rows = stmt.query(params![prompt_version_id, test_case_id])?;
         let Some(row) = rows.next()? else {
@@ -532,6 +534,8 @@ impl Repository {
         let prompt_version_id: String = row.get(1)?;
         let test_case_id: String = row.get(2)?;
         let mut run_status: String = row.get(3)?;
+        let output: String = row.get(4)?;
+        let error_message: Option<String> = row.get(5)?;
         let human_label = self.load_human_label(&case_result_id)?;
         let llm_judgement_error = self.load_latest_llm_judgement_error(&case_result_id)?;
         if human_label.is_none() && llm_judgement_error.is_some() {
@@ -543,6 +547,8 @@ impl Repository {
             prompt_version_id,
             test_case_id,
             run_status,
+            output,
+            error_message,
             human_label,
             llm_judgement,
             llm_judgement_error,

@@ -113,6 +113,17 @@ export function VersionCaseResults({
             </div>
 
             <div className="review-block">
+              <h3>Output</h3>
+              {selectedResult?.output ? (
+                <pre>{selectedResult.output}</pre>
+              ) : selectedResult?.errorMessage ? (
+                <p className="muted-copy">{selectedResult.errorMessage}</p>
+              ) : (
+                <p className="muted-copy">No output recorded.</p>
+              )}
+            </div>
+
+            <div className="review-block">
               <h3>LLM Judge</h3>
               {selectedResult?.llmJudgement ? (
                 <div className="judge-summary">

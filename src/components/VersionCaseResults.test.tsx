@@ -32,6 +32,7 @@ const results: CaseResultSummary[] = [
     promptVersionId: "v1",
     testCaseId: "c1",
     runStatus: "completed",
+    output: "Shanghai events are a durable preference.",
     llmJudgement: { result: "pass", reason: "Contains a durable preference." },
     humanLabel: null
   }
@@ -97,5 +98,40 @@ describe("VersionCaseResults", () => {
     );
 
     expect(screen.getByText("Judge response was not valid JSON.")).toBeInTheDocument();
+  });
+
+  it("shows prompt output and run error messages in the detail panel", () => {
+    const { rerender } = render(
+      <VersionCaseResults
+        cases={cases}
+        results={results}
+        selectedVersionId="v1"
+        onLabel={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText("Shanghai events are a durable preference.")).toBeInTheDocument();
+
+    rerender(
+      <VersionCaseResults
+        cases={cases}
+        results={[
+          {
+            caseResultId: "r3",
+            promptVersionId: "v1",
+            testCaseId: "c1",
+            runStatus: "error",
+            output: "",
+            errorMessage: "Run model timed out.",
+            llmJudgement: null,
+            humanLabel: null
+          }
+        ]}
+        selectedVersionId="v1"
+        onLabel={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText("Run model timed out.")).toBeInTheDocument();
   });
 });
