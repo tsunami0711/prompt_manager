@@ -1,5 +1,7 @@
 # Prompt Manager
 
+中文文档: [README.zh-CN.md](README.zh-CN.md)
+
 Operational desktop workbench for editing prompt versions, managing test cases,
 reviewing version/case results, and tracking evaluation runs.
 
