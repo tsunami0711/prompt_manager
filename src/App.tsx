@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { CaseManager } from "./components/CaseManager";
 import { ModelConfigDialog, type ModelConfigDraft } from "./components/ModelConfigDialog";
 import { PromptEditor } from "./components/PromptEditor";
@@ -37,6 +37,22 @@ import type {
 
 const defaultJudgePrompt =
   "Return JSON only with result as pass or fail and reason explaining whether the prompt output satisfies the test case.";
+
+interface PromptDraft {
+  name: string;
+  description: string;
+}
+
+interface VersionDraft {
+  versionName: string;
+  content: string;
+}
+
+interface CaseDraft {
+  title: string;
+  input: string;
+  tags: string;
+}
 
 function isTauriRuntime() {
   return "__TAURI_INTERNALS__" in window;
@@ -204,6 +220,9 @@ export default function App() {
   const [judgeConfigs, setJudgeConfigs] = useState<ModelConfigRecord[]>([]);
   const [judgeMode, setJudgeMode] = useState<JudgeMode>("human");
   const [isConfigOpen, setIsConfigOpen] = useState(false);
+  const [isPromptDialogOpen, setIsPromptDialogOpen] = useState(false);
+  const [isVersionDialogOpen, setIsVersionDialogOpen] = useState(false);
+  const [isCaseDialogOpen, setIsCaseDialogOpen] = useState(false);
   const [backendAvailable, setBackendAvailable] = useState<boolean | null>(null);
   const [runError, setRunError] = useState<string | null>(null);
   const [selectedReviewCaseId, setSelectedReviewCaseId] = useState<string | null>(null);
@@ -366,16 +385,12 @@ export default function App() {
     setSelectedVersionId(firstVersion?.id ?? null);
   }
 
-  async function createPromptFromInput() {
-    const name = window.prompt("Prompt name");
-    if (!name?.trim()) return;
-    const description = window.prompt("Description") ?? "";
-
+  async function createPromptFromInput(draft: PromptDraft) {
     if (backendAvailable === false) {
       const prompt = {
         id: `local-prompt-${Date.now()}`,
-        name: name.trim(),
-        description
+        name: draft.name.trim(),
+        description: draft.description
       };
       setPrompts((current) => [...current, prompt]);
       setSelectedPromptId(prompt.id);
@@ -384,91 +399,106 @@ export default function App() {
       setCases([]);
       setResultSummaries([]);
       setRunHistory([]);
+      setIsPromptDialogOpen(false);
       return;
     }
 
     try {
-      const prompt = await createPrompt({ name: name.trim(), description });
+      const prompt = await createPrompt({
+        name: draft.name.trim(),
+        description: draft.description
+      });
       setPrompts((current) => [...current, prompt]);
       setSelectedPromptId(prompt.id);
       setSelectedVersionId(null);
+      setIsPromptDialogOpen(false);
       setRunError(null);
     } catch (error) {
       setRunError(error instanceof Error ? error.message : String(error));
     }
   }
 
-  async function createVersionFromInput() {
+  function openVersionDialog() {
     if (!selectedPromptId) {
       setRunError("Create or select a prompt before adding a version.");
       return;
     }
-    const versionName = window.prompt("Version name", `v${visibleVersions.length + 1}`);
-    if (!versionName?.trim()) return;
-    const content =
-      window.prompt("Prompt content", selectedVersion?.content ?? "Write the prompt here.") ?? "";
+    setIsVersionDialogOpen(true);
+  }
 
+  async function createVersionFromInput(draft: VersionDraft) {
+    if (!selectedPromptId) {
+      setRunError("Create or select a prompt before adding a version.");
+      return;
+    }
     if (backendAvailable === false) {
       const version = {
         id: `local-version-${Date.now()}`,
         promptId: selectedPromptId,
-        versionName: versionName.trim(),
-        content,
+        versionName: draft.versionName.trim(),
+        content: draft.content,
         note: null
       };
       setVersions((current) => [...current, version]);
       setSelectedVersionId(version.id);
+      setIsVersionDialogOpen(false);
       return;
     }
 
     try {
       const version = await createPromptVersion({
         promptId: selectedPromptId,
-        versionName: versionName.trim(),
-        content,
+        versionName: draft.versionName.trim(),
+        content: draft.content,
         note: null
       });
       setVersions((current) => [...current, version]);
       setSelectedVersionId(version.id);
+      setIsVersionDialogOpen(false);
       setRunError(null);
     } catch (error) {
       setRunError(error instanceof Error ? error.message : String(error));
     }
   }
 
-  async function createCaseFromInput() {
+  function openCaseDialog() {
     if (!selectedPromptId) {
       setRunError("Create or select a prompt before adding a case.");
       return;
     }
-    const title = window.prompt("Case title");
-    if (!title?.trim()) return;
-    const input = window.prompt("Case input") ?? "";
-    const tags = window.prompt("Tags", "") ?? "";
+    setIsCaseDialogOpen(true);
+  }
 
+  async function createCaseFromInput(draft: CaseDraft) {
+    if (!selectedPromptId) {
+      setRunError("Create or select a prompt before adding a case.");
+      return;
+    }
     if (backendAvailable === false) {
       const testCase = {
         id: `local-case-${Date.now()}`,
         promptId: selectedPromptId,
-        title: title.trim(),
-        input,
-        tags,
+        title: draft.title.trim(),
+        input: draft.input,
+        tags: draft.tags,
         note: null,
         enabled: true
       };
       setCases((current) => [...current, testCase]);
+      setIsCaseDialogOpen(false);
       return;
     }
 
     try {
       const testCase = await createTestCase({
         promptId: selectedPromptId,
-        title: title.trim(),
-        input,
-        tags,
+        title: draft.title.trim(),
+        input: draft.input,
+        tags: draft.tags,
         note: null
       });
       setCases((current) => [...current, testCase]);
+      setIsCaseDialogOpen(false);
       setRunError(null);
     } catch (error) {
       setRunError(error instanceof Error ? error.message : String(error));
@@ -600,7 +630,7 @@ export default function App() {
         versions={visibleVersions}
         selectedPromptId={selectedPromptId}
         selectedVersionId={selectedVersionId}
-        onCreatePrompt={() => void createPromptFromInput()}
+        onCreatePrompt={() => setIsPromptDialogOpen(true)}
         onSelectPrompt={selectPrompt}
         onSelectVersion={setSelectedVersionId}
       />
@@ -618,12 +648,12 @@ export default function App() {
               version={selectedVersion}
               canCreateVersion={Boolean(selectedPromptId)}
               onContentChange={updateVersionContent}
-              onCreateVersion={() => void createVersionFromInput()}
+              onCreateVersion={openVersionDialog}
             />
             <CaseManager
               cases={visibleCases}
               canCreateCase={Boolean(selectedPromptId)}
-              onCreateCase={() => void createCaseFromInput()}
+              onCreateCase={openCaseDialog}
             />
           </div>
         )}
@@ -687,6 +717,278 @@ export default function App() {
         onClose={() => setIsConfigOpen(false)}
         onSave={saveJudgeConfig}
       />
+      <CreatePromptDialog
+        open={isPromptDialogOpen}
+        onClose={() => setIsPromptDialogOpen(false)}
+        onSave={(draft) => void createPromptFromInput(draft)}
+      />
+      <CreateVersionDialog
+        open={isVersionDialogOpen}
+        defaultVersionName={`v${visibleVersions.length + 1}`}
+        defaultContent={selectedVersion?.content ?? "Write the prompt here."}
+        onClose={() => setIsVersionDialogOpen(false)}
+        onSave={(draft) => void createVersionFromInput(draft)}
+      />
+      <CreateCaseDialog
+        open={isCaseDialogOpen}
+        onClose={() => setIsCaseDialogOpen(false)}
+        onSave={(draft) => void createCaseFromInput(draft)}
+      />
     </main>
+  );
+}
+
+function CreatePromptDialog({
+  open,
+  onClose,
+  onSave
+}: {
+  open: boolean;
+  onClose: () => void;
+  onSave: (draft: PromptDraft) => void;
+}) {
+  const [draft, setDraft] = useState<PromptDraft>({ name: "", description: "" });
+
+  if (!open) return null;
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!draft.name.trim()) return;
+    onSave({ name: draft.name.trim(), description: draft.description });
+  }
+
+  return (
+    <div className="dialog-backdrop" role="presentation">
+      <section
+        className="config-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="create-prompt-title"
+      >
+        <div className="panel-header">
+          <div>
+            <p className="eyebrow">Prompt</p>
+            <h2 id="create-prompt-title">Create Prompt</h2>
+          </div>
+          <button className="icon-button" aria-label="Close prompt form" onClick={onClose}>
+            x
+          </button>
+        </div>
+
+        <form className="config-form" onSubmit={submit}>
+          <label>
+            <span>Prompt name</span>
+            <input
+              className="input"
+              value={draft.name}
+              onChange={(event) =>
+                setDraft((current) => ({ ...current, name: event.target.value }))
+              }
+              autoFocus
+              required
+            />
+          </label>
+          <label>
+            <span>Description</span>
+            <textarea
+              className="input"
+              value={draft.description}
+              onChange={(event) =>
+                setDraft((current) => ({ ...current, description: event.target.value }))
+              }
+              rows={4}
+            />
+          </label>
+          <div className="config-actions">
+            <button className="button" type="button" onClick={onClose}>
+              Cancel
+            </button>
+            <button className="button primary" type="submit">
+              Create Prompt
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
+  );
+}
+
+function CreateVersionDialog({
+  open,
+  defaultVersionName,
+  defaultContent,
+  onClose,
+  onSave
+}: {
+  open: boolean;
+  defaultVersionName: string;
+  defaultContent: string;
+  onClose: () => void;
+  onSave: (draft: VersionDraft) => void;
+}) {
+  const [draft, setDraft] = useState<VersionDraft>({
+    versionName: defaultVersionName,
+    content: defaultContent
+  });
+
+  useEffect(() => {
+    if (open) {
+      setDraft({ versionName: defaultVersionName, content: defaultContent });
+    }
+  }, [defaultContent, defaultVersionName, open]);
+
+  if (!open) return null;
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!draft.versionName.trim()) return;
+    onSave({ versionName: draft.versionName.trim(), content: draft.content });
+  }
+
+  return (
+    <div className="dialog-backdrop" role="presentation">
+      <section
+        className="config-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="create-version-title"
+      >
+        <div className="panel-header">
+          <div>
+            <p className="eyebrow">Version</p>
+            <h2 id="create-version-title">Create Version</h2>
+          </div>
+          <button className="icon-button" aria-label="Close version form" onClick={onClose}>
+            x
+          </button>
+        </div>
+
+        <form className="config-form" onSubmit={submit}>
+          <label>
+            <span>Version name</span>
+            <input
+              className="input"
+              value={draft.versionName}
+              onChange={(event) =>
+                setDraft((current) => ({ ...current, versionName: event.target.value }))
+              }
+              autoFocus
+              required
+            />
+          </label>
+          <label>
+            <span>Prompt content</span>
+            <textarea
+              className="input"
+              value={draft.content}
+              onChange={(event) =>
+                setDraft((current) => ({ ...current, content: event.target.value }))
+              }
+              rows={8}
+            />
+          </label>
+          <div className="config-actions">
+            <button className="button" type="button" onClick={onClose}>
+              Cancel
+            </button>
+            <button className="button primary" type="submit">
+              Create Version
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
+  );
+}
+
+function CreateCaseDialog({
+  open,
+  onClose,
+  onSave
+}: {
+  open: boolean;
+  onClose: () => void;
+  onSave: (draft: CaseDraft) => void;
+}) {
+  const [draft, setDraft] = useState<CaseDraft>({ title: "", input: "", tags: "" });
+
+  useEffect(() => {
+    if (open) {
+      setDraft({ title: "", input: "", tags: "" });
+    }
+  }, [open]);
+
+  if (!open) return null;
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!draft.title.trim()) return;
+    onSave({ title: draft.title.trim(), input: draft.input, tags: draft.tags });
+  }
+
+  return (
+    <div className="dialog-backdrop" role="presentation">
+      <section
+        className="config-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="create-case-title"
+      >
+        <div className="panel-header">
+          <div>
+            <p className="eyebrow">Test Case</p>
+            <h2 id="create-case-title">Create Test Case</h2>
+          </div>
+          <button className="icon-button" aria-label="Close test case form" onClick={onClose}>
+            x
+          </button>
+        </div>
+
+        <form className="config-form" onSubmit={submit}>
+          <label>
+            <span>Case title</span>
+            <input
+              className="input"
+              value={draft.title}
+              onChange={(event) =>
+                setDraft((current) => ({ ...current, title: event.target.value }))
+              }
+              autoFocus
+              required
+            />
+          </label>
+          <label>
+            <span>Case input</span>
+            <textarea
+              className="input"
+              value={draft.input}
+              onChange={(event) =>
+                setDraft((current) => ({ ...current, input: event.target.value }))
+              }
+              rows={6}
+            />
+          </label>
+          <label>
+            <span>Tags</span>
+            <input
+              className="input"
+              value={draft.tags}
+              onChange={(event) =>
+                setDraft((current) => ({ ...current, tags: event.target.value }))
+              }
+              placeholder="memory, safety"
+            />
+          </label>
+          <div className="config-actions">
+            <button className="button" type="button" onClick={onClose}>
+              Cancel
+            </button>
+            <button className="button primary" type="submit">
+              Create Case
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
   );
 }
