@@ -298,6 +298,7 @@ fn build_run_plan_rejects_empty_case_selection() {
         prompt_version_id: version_id,
         case_ids: vec![],
         run_model_config_id: model_id,
+        case_scope: "selected".to_string(),
         judge_mode: "human".to_string(),
         judge_model_config_id: None,
         judge_prompt: None,

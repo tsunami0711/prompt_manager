@@ -376,7 +376,7 @@ impl Repository {
             &input.judge_mode,
             judge.as_ref().map(|plan| plan.model.id.as_str()),
             judge.as_ref().map(|plan| plan.prompt.as_str()),
-            "selected",
+            &input.case_scope,
         )?;
 
         Ok(RunPlan {

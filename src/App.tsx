@@ -288,6 +288,15 @@ export default function App() {
         });
       } catch {
         if (cancelled) return;
+        if (backendAvailable === true) {
+          setVersions([]);
+          setCases([]);
+          setResultSummaries([]);
+          setRunHistory([]);
+          setSelectedVersionId(null);
+          setRunError("Could not load this prompt workspace from the local database.");
+          return;
+        }
         const nextVersions = fallbackVersionsForPrompt(promptId);
         setVersions(nextVersions);
         setCases(fallbackCasesForPrompt(promptId));
@@ -435,6 +444,7 @@ export default function App() {
         promptVersionId: selectedVersionId,
         caseIds,
         runModelConfigId: runModelConfig.id,
+        caseScope: scope,
         judgeMode: mode,
         judgeModelConfigId: judgeModelConfig?.id ?? null,
         judgePrompt: mode === "llm" ? defaultJudgePrompt : null

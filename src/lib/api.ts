@@ -90,6 +90,7 @@ export async function runSelectedCases(input: {
   promptVersionId: string;
   caseIds: string[];
   runModelConfigId: string;
+  caseScope: "selected" | "all";
   judgeMode: "human" | "llm";
   judgeModelConfigId?: string | null;
   judgePrompt?: string | null;

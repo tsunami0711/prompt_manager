@@ -15,6 +15,7 @@ pub struct RunCasesInput {
     pub prompt_version_id: String,
     pub case_ids: Vec<String>,
     pub run_model_config_id: String,
+    pub case_scope: String,
     pub judge_mode: String,
     pub judge_model_config_id: Option<String>,
     pub judge_prompt: Option<String>,
@@ -203,6 +204,11 @@ pub async fn run_selected_cases(
     if input.case_ids.is_empty() {
         return Err(CommandError {
             message: "select at least one case".to_string(),
+        });
+    }
+    if input.case_scope != "selected" && input.case_scope != "all" {
+        return Err(CommandError {
+            message: "case_scope must be either 'selected' or 'all'".to_string(),
         });
     }
 
