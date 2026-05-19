@@ -119,6 +119,11 @@ export function VersionCaseResults({
                   <ResultBadge value={selectedResult.llmJudgement.result} />
                   <p>{selectedResult.llmJudgement.reason}</p>
                 </div>
+              ) : selectedResult?.llmJudgementError ? (
+                <div className="judge-summary">
+                  <ResultBadge value="error" />
+                  <p>{selectedResult.llmJudgementError}</p>
+                </div>
               ) : (
                 <p className="muted-copy">No LLM judgement recorded.</p>
               )}

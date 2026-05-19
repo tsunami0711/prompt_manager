@@ -66,6 +66,7 @@ pub struct LatestCaseResultSummary {
     pub run_status: String,
     pub human_label: Option<HumanLabel>,
     pub llm_judgement: Option<LlmJudgement>,
+    pub llm_judgement_error: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -532,7 +533,8 @@ impl Repository {
         let test_case_id: String = row.get(2)?;
         let mut run_status: String = row.get(3)?;
         let human_label = self.load_human_label(&case_result_id)?;
-        if human_label.is_none() && self.has_latest_llm_judgement_error(&case_result_id)? {
+        let llm_judgement_error = self.load_latest_llm_judgement_error(&case_result_id)?;
+        if human_label.is_none() && llm_judgement_error.is_some() {
             run_status = "error".to_string();
         }
         let llm_judgement = self.load_llm_judgement(&case_result_id)?;
@@ -543,6 +545,7 @@ impl Repository {
             run_status,
             human_label,
             llm_judgement,
+            llm_judgement_error,
         }))
     }
 
@@ -647,16 +650,19 @@ impl Repository {
         Ok(Some(LlmJudgement::new(Self::parse_pass_fail(result), reason)))
     }
 
-    fn has_latest_llm_judgement_error(&self, case_result_id: &str) -> AppResult<bool> {
-        let status = self
+    fn load_latest_llm_judgement_error(&self, case_result_id: &str) -> AppResult<Option<String>> {
+        let row = self
             .conn
             .query_row(
-                "SELECT status FROM llm_judgements WHERE case_result_id = ?1 ORDER BY created_at DESC LIMIT 1",
+                "SELECT status, error_message FROM llm_judgements WHERE case_result_id = ?1 ORDER BY created_at DESC LIMIT 1",
                 params![case_result_id],
-                |row| row.get::<_, String>(0),
+                |row| Ok((row.get::<_, String>(0)?, row.get::<_, Option<String>>(1)?)),
             )
             .optional()?;
-        Ok(status.as_deref() == Some("error"))
+        Ok(match row {
+            Some((status, error_message)) if status == "error" => error_message,
+            _ => None,
+        })
     }
 
     fn prompt_version_belongs_to_prompt(

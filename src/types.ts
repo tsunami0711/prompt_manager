@@ -21,6 +21,7 @@ export interface CaseResultSummary {
   testCaseId: string;
   runStatus: CaseRunStatus;
   llmJudgement: LlmJudgementSummary | null;
+  llmJudgementError?: string | null;
   humanLabel: HumanLabelSummary | null;
 }
 

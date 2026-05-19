@@ -75,4 +75,27 @@ describe("VersionCaseResults", () => {
     expect(within(reviewPanel).getByRole("button", { name: "Pass" })).toBeDisabled();
     expect(within(reviewPanel).getByRole("button", { name: "Fail" })).toBeDisabled();
   });
+
+  it("shows the LLM judge error message when judgement fails", async () => {
+    render(
+      <VersionCaseResults
+        cases={cases}
+        results={[
+          {
+            caseResultId: "r2",
+            promptVersionId: "v1",
+            testCaseId: "c1",
+            runStatus: "error",
+            llmJudgement: null,
+            llmJudgementError: "Judge response was not valid JSON.",
+            humanLabel: null
+          }
+        ]}
+        selectedVersionId="v1"
+        onLabel={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText("Judge response was not valid JSON.")).toBeInTheDocument();
+  });
 });
