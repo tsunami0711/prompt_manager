@@ -196,8 +196,17 @@ export default function App() {
     async function loadPromptRecords() {
       try {
         const loadedPrompts = await listPrompts();
-        if (cancelled || loadedPrompts.length === 0) return;
+        if (cancelled) return;
         setPrompts(loadedPrompts);
+        if (loadedPrompts.length === 0) {
+          setSelectedPromptId(null);
+          setSelectedVersionId(null);
+          setVersions([]);
+          setCases([]);
+          setResultSummaries([]);
+          setRunHistory([]);
+          return;
+        }
         setSelectedPromptId((current) =>
           current && loadedPrompts.some((prompt) => prompt.id === current)
             ? current
@@ -230,23 +239,26 @@ export default function App() {
           listRunHistory(promptId)
         ]);
         if (cancelled) return;
-        const nextVersions =
-          loadedVersions.length > 0 ? loadedVersions : fallbackVersionsForPrompt(promptId);
-        setVersions(nextVersions);
-        setCases(loadedCases.length > 0 ? loadedCases : fallbackCasesForPrompt(promptId));
-        setResultSummaries(loadedResults.length > 0 ? loadedResults : fixtureResults);
-        setRunHistory(loadedHistory.length > 0 ? loadedHistory : fallbackRunHistory);
+        setVersions(loadedVersions);
+        setCases(loadedCases);
+        setResultSummaries(loadedResults);
+        setRunHistory(loadedHistory);
         setSelectedVersionId((current) => {
-          if (current && nextVersions.some((version) => version.id === current)) return current;
-          return nextVersions[0]?.id ?? null;
+          if (current && loadedVersions.some((version) => version.id === current)) return current;
+          return loadedVersions[0]?.id ?? null;
         });
       } catch {
         if (cancelled) return;
-        setVersions(fallbackVersionsForPrompt(promptId));
+        const nextVersions = fallbackVersionsForPrompt(promptId);
+        setVersions(nextVersions);
         setCases(fallbackCasesForPrompt(promptId));
         setResultSummaries(fixtureResults);
         setRunHistory(fallbackRunHistory);
-        setSelectedVersionId((current) => current ?? fallbackVersions[0]?.id ?? null);
+        setSelectedVersionId((current) =>
+          current && nextVersions.some((version) => version.id === current)
+            ? current
+            : (nextVersions[0]?.id ?? null)
+        );
       }
     }
 
