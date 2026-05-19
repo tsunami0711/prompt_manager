@@ -530,8 +530,11 @@ impl Repository {
         let case_result_id: String = row.get(0)?;
         let prompt_version_id: String = row.get(1)?;
         let test_case_id: String = row.get(2)?;
-        let run_status: String = row.get(3)?;
+        let mut run_status: String = row.get(3)?;
         let human_label = self.load_human_label(&case_result_id)?;
+        if human_label.is_none() && self.has_latest_llm_judgement_error(&case_result_id)? {
+            run_status = "error".to_string();
+        }
         let llm_judgement = self.load_llm_judgement(&case_result_id)?;
         Ok(Some(LatestCaseResultSummary {
             case_result_id,
@@ -570,8 +573,22 @@ impl Repository {
                 er.judge_mode,
                 COALESCE(er.started_at, er.created_at) AS started_at,
                 er.finished_at,
-                COALESCE(SUM(CASE WHEN cr.status = 'completed' THEN 1 ELSE 0 END), 0) AS success_count,
-                COALESCE(SUM(CASE WHEN cr.status = 'error' THEN 1 ELSE 0 END), 0) AS error_count
+                COALESCE(SUM(CASE
+                    WHEN cr.status = 'completed'
+                         AND NOT EXISTS (
+                             SELECT 1 FROM llm_judgements lj
+                             WHERE lj.case_result_id = cr.id AND lj.status = 'error'
+                         )
+                    THEN 1 ELSE 0
+                END), 0) AS success_count,
+                COALESCE(SUM(CASE
+                    WHEN cr.status = 'error'
+                         OR EXISTS (
+                             SELECT 1 FROM llm_judgements lj
+                             WHERE lj.case_result_id = cr.id AND lj.status = 'error'
+                         )
+                    THEN 1 ELSE 0
+                END), 0) AS error_count
              FROM evaluation_runs er
              JOIN prompt_versions pv ON pv.id = er.prompt_version_id
              LEFT JOIN case_results cr ON cr.evaluation_run_id = er.id
@@ -628,6 +645,18 @@ impl Repository {
         let result: String = row.get(0)?;
         let reason: String = row.get(1)?;
         Ok(Some(LlmJudgement::new(Self::parse_pass_fail(result), reason)))
+    }
+
+    fn has_latest_llm_judgement_error(&self, case_result_id: &str) -> AppResult<bool> {
+        let status = self
+            .conn
+            .query_row(
+                "SELECT status FROM llm_judgements WHERE case_result_id = ?1 ORDER BY created_at DESC LIMIT 1",
+                params![case_result_id],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?;
+        Ok(status.as_deref() == Some("error"))
     }
 
     fn prompt_version_belongs_to_prompt(
