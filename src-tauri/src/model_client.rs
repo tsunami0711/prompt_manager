@@ -47,9 +47,11 @@ pub async fn complete_chat(
     user_input: &str,
 ) -> AppResult<String> {
     let url = format!("{}/chat/completions", config.base_url.trim_end_matches('/'));
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(60))
-        .build()?;
+    let mut client_builder = reqwest::Client::builder().timeout(Duration::from_secs(60));
+    if is_loopback_base_url(&config.base_url) {
+        client_builder = client_builder.no_proxy();
+    }
+    let client = client_builder.build()?;
     let request = ChatRequest {
         model: config.model.clone(),
         messages: vec![
@@ -96,6 +98,13 @@ pub async fn complete_chat(
         .ok_or_else(|| AppError::Validation("model response contained no choices".to_string()))?;
 
     Ok(content)
+}
+
+fn is_loopback_base_url(base_url: &str) -> bool {
+    reqwest::Url::parse(base_url)
+        .ok()
+        .and_then(|url| url.host_str().map(str::to_string))
+        .is_some_and(|host| matches!(host.as_str(), "localhost" | "127.0.0.1" | "::1"))
 }
 
 #[cfg(test)]
