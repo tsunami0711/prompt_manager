@@ -8,6 +8,15 @@ interface CaseReviewRow {
   result: CaseResultSummary | null;
 }
 
+type ReviewFilter = "all" | "failed" | "unreviewed" | "disagreement";
+
+const reviewFilters: Array<{ label: string; value: ReviewFilter }> = [
+  { label: "All", value: "all" },
+  { label: "Failed", value: "failed" },
+  { label: "Unreviewed", value: "unreviewed" },
+  { label: "Disagreement", value: "disagreement" }
+];
+
 export function VersionCaseResults({
   cases,
   results,
@@ -22,6 +31,7 @@ export function VersionCaseResults({
   onSelectedCaseChange?: (caseId: string | null) => void;
 }) {
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(cases[0]?.id ?? null);
+  const [filter, setFilter] = useState<ReviewFilter>("all");
 
   const resultByCaseId = useMemo(() => {
     const map = new Map<string, CaseResultSummary>();
@@ -48,6 +58,19 @@ export function VersionCaseResults({
 
   const selectedRow =
     rows.find((row) => row.testCase.id === selectedCaseId) ?? rows[0] ?? null;
+  const visibleRows = rows.filter((row) => {
+    const finalResult = row.result ? computeFinalResult(row.result).result : "pending";
+    if (filter === "failed") return finalResult === "fail" || finalResult === "error";
+    if (filter === "unreviewed") return Boolean(row.result?.caseResultId && !row.result.humanLabel);
+    if (filter === "disagreement") {
+      return Boolean(
+        row.result?.humanLabel &&
+          row.result.llmJudgement &&
+          row.result.humanLabel.result !== row.result.llmJudgement.result
+      );
+    }
+    return true;
+  });
   const selectedResult = selectedRow?.result ?? null;
   const canLabel = Boolean(selectedResult?.caseResultId);
 
@@ -72,7 +95,19 @@ export function VersionCaseResults({
           <span>Case</span>
           <span>Status</span>
         </div>
-        {rows.map((row) => {
+        <div className="review-filter-group" aria-label="Review filters">
+          {reviewFilters.map((item) => (
+            <button
+              key={item.value}
+              className={filter === item.value ? "filter-button active" : "filter-button"}
+              aria-pressed={filter === item.value}
+              onClick={() => setFilter(item.value)}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+        {visibleRows.map((row) => {
           const finalResult = row.result ? computeFinalResult(row.result).result : "pending";
           const isSelected = selectedRow?.testCase.id === row.testCase.id;
 
@@ -91,7 +126,7 @@ export function VersionCaseResults({
             </button>
           );
         })}
-        {rows.length === 0 && <p className="case-results-empty">No cases for this prompt.</p>}
+        {visibleRows.length === 0 && <p className="case-results-empty">No cases match this filter.</p>}
       </div>
 
       <section className="case-review-detail panel" aria-label="Case review detail">

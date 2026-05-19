@@ -11,7 +11,7 @@ import type {
 import { ResultBadge } from "./ResultBadge";
 import { RunControls } from "./RunControls";
 
-type MatrixFilter = "all" | "failed" | "regression";
+type MatrixFilter = "all" | "failed" | "pending" | "error" | "regression" | "improved";
 
 interface MatrixRow {
   testCase: TestCaseRecord;
@@ -22,7 +22,10 @@ interface MatrixRow {
 const filters: Array<{ label: string; value: MatrixFilter }> = [
   { label: "All", value: "all" },
   { label: "Failed only", value: "failed" },
-  { label: "Regression", value: "regression" }
+  { label: "Pending", value: "pending" },
+  { label: "Error", value: "error" },
+  { label: "Regression", value: "regression" },
+  { label: "Improved", value: "improved" }
 ];
 
 export function VersionMatrix({
@@ -72,7 +75,10 @@ export function VersionMatrix({
 
   const visibleRows = rows.filter((row) => {
     if (filter === "failed") return row.values.includes("fail") || row.values.includes("error");
+    if (filter === "pending") return row.values.includes("pending");
+    if (filter === "error") return row.values.includes("error");
     if (filter === "regression") return row.trend === "regression";
+    if (filter === "improved") return row.trend === "improved";
     return true;
   });
 

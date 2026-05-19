@@ -9,6 +9,8 @@ const runs: RunHistoryItem[] = [
     id: "run-1",
     status: "completed",
     promptVersionName: "v2",
+    runModelName: "Runner",
+    judgeModelName: "Judge",
     caseScope: "selected",
     judgeMode: "llm",
     startedAt: "2026-05-19T08:00:00.000Z",
@@ -37,6 +39,8 @@ describe("RunHistory", () => {
     expect(screen.getByRole("listitem", { name: /v2/ })).toHaveTextContent("Completed");
     expect(screen.getByRole("listitem", { name: /v2/ })).toHaveTextContent("Selected");
     expect(screen.getByRole("listitem", { name: /v2/ })).toHaveTextContent("LLM");
+    expect(screen.getByRole("listitem", { name: /v2/ })).toHaveTextContent("Runner");
+    expect(screen.getByRole("listitem", { name: /v2/ })).toHaveTextContent("Judge");
     expect(screen.getByRole("listitem", { name: /v2/ })).toHaveTextContent("3 ok");
     expect(screen.getByRole("listitem", { name: /v2/ })).toHaveTextContent("1 error");
     expect(screen.getByRole("listitem", { name: /v1/ })).toHaveTextContent("All");

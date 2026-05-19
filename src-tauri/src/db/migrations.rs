@@ -58,7 +58,7 @@ pub fn migrate(conn: &Connection) -> rusqlite::Result<()> {
           judge_model_config_id TEXT REFERENCES model_configs(id),
           judge_prompt TEXT,
           case_scope TEXT NOT NULL CHECK(case_scope IN ('selected', 'all')),
-          status TEXT NOT NULL CHECK(status IN ('pending', 'running', 'completed', 'error')),
+          status TEXT NOT NULL CHECK(status IN ('pending', 'running', 'completed', 'completed_with_errors', 'error')),
           started_at TEXT,
           finished_at TEXT,
           created_at TEXT NOT NULL

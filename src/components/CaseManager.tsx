@@ -1,6 +1,14 @@
 import type { TestCaseRecord } from "../types";
 
-export function CaseManager({ cases }: { cases: TestCaseRecord[] }) {
+export function CaseManager({
+  cases,
+  canCreateCase = false,
+  onCreateCase
+}: {
+  cases: TestCaseRecord[];
+  canCreateCase?: boolean;
+  onCreateCase: () => void;
+}) {
   return (
     <section className="panel">
       <div className="panel-header">
@@ -8,7 +16,9 @@ export function CaseManager({ cases }: { cases: TestCaseRecord[] }) {
           <p className="eyebrow">Test Cases</p>
           <h2>{cases.length} cases</h2>
         </div>
-        <button className="button">New Case</button>
+        <button className="button" disabled={!canCreateCase} onClick={onCreateCase}>
+          New Case
+        </button>
       </div>
       <div className="case-list">
         {cases.map((testCase) => (

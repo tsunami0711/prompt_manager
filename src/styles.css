@@ -315,12 +315,19 @@ select {
 }
 
 .matrix-filter-group,
+.review-filter-group,
 .matrix-actions,
 .run-controls {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+}
+
+.review-filter-group {
+  padding: 10px 12px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #ffffff;
 }
 
 .filter-button {
@@ -767,7 +774,8 @@ select {
   background: #2563eb;
 }
 
-.status-error {
+.status-error,
+.status-completed_with_errors {
   background: #ea580c;
 }
 

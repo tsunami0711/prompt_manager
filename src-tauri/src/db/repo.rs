@@ -77,6 +77,8 @@ pub struct RunHistoryItem {
     pub id: String,
     pub status: String,
     pub prompt_version_name: String,
+    pub run_model_name: String,
+    pub judge_model_name: Option<String>,
     pub case_scope: String,
     pub judge_mode: String,
     pub started_at: String,
@@ -476,9 +478,28 @@ impl Repository {
 
     pub fn finish_evaluation_run(&self, run_id: &str) -> AppResult<()> {
         let now = Self::now();
+        let error_count: i64 = self.conn.query_row(
+            "SELECT COUNT(*)
+             FROM case_results cr
+             WHERE cr.evaluation_run_id = ?1
+               AND (
+                 cr.status = 'error'
+                 OR EXISTS (
+                   SELECT 1 FROM llm_judgements lj
+                   WHERE lj.case_result_id = cr.id AND lj.status = 'error'
+                 )
+               )",
+            params![run_id],
+            |row| row.get(0),
+        )?;
+        let status = if error_count > 0 {
+            "completed_with_errors"
+        } else {
+            "completed"
+        };
         let updated = self.conn.execute(
-            "UPDATE evaluation_runs SET status = 'completed', finished_at = ?1 WHERE id = ?2",
-            params![now, run_id],
+            "UPDATE evaluation_runs SET status = ?1, finished_at = ?2 WHERE id = ?3",
+            params![status, now, run_id],
         )?;
         if updated == 0 {
             return Err(AppError::Validation(
@@ -578,6 +599,8 @@ impl Repository {
                 er.id,
                 er.status,
                 pv.version_name,
+                run_model.name,
+                judge_model.name,
                 er.case_scope,
                 er.judge_mode,
                 COALESCE(er.started_at, er.created_at) AS started_at,
@@ -600,9 +623,11 @@ impl Repository {
                 END), 0) AS error_count
              FROM evaluation_runs er
              JOIN prompt_versions pv ON pv.id = er.prompt_version_id
+             JOIN model_configs run_model ON run_model.id = er.run_model_config_id
+             LEFT JOIN model_configs judge_model ON judge_model.id = er.judge_model_config_id
              LEFT JOIN case_results cr ON cr.evaluation_run_id = er.id
              WHERE er.prompt_id = ?1
-             GROUP BY er.id, er.status, pv.version_name, er.case_scope, er.judge_mode, er.started_at, er.created_at, er.finished_at
+             GROUP BY er.id, er.status, pv.version_name, run_model.name, judge_model.name, er.case_scope, er.judge_mode, er.started_at, er.created_at, er.finished_at
              ORDER BY er.created_at DESC
              LIMIT 50",
         )?;
@@ -611,12 +636,14 @@ impl Repository {
                 id: row.get(0)?,
                 status: row.get(1)?,
                 prompt_version_name: row.get(2)?,
-                case_scope: row.get(3)?,
-                judge_mode: row.get(4)?,
-                started_at: row.get(5)?,
-                finished_at: row.get(6)?,
-                success_count: row.get(7)?,
-                error_count: row.get(8)?,
+                run_model_name: row.get(3)?,
+                judge_model_name: row.get(4)?,
+                case_scope: row.get(5)?,
+                judge_mode: row.get(6)?,
+                started_at: row.get(7)?,
+                finished_at: row.get(8)?,
+                success_count: row.get(9)?,
+                error_count: row.get(10)?,
             })
         })?;
         rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)

@@ -5,6 +5,7 @@ interface SidebarProps {
   versions: PromptVersionRecord[];
   selectedPromptId: string | null;
   selectedVersionId: string | null;
+  onCreatePrompt: () => void;
   onSelectPrompt: (id: string) => void;
   onSelectVersion: (id: string) => void;
 }
@@ -14,6 +15,7 @@ export function Sidebar({
   versions,
   selectedPromptId,
   selectedVersionId,
+  onCreatePrompt,
   onSelectPrompt,
   onSelectVersion
 }: SidebarProps) {
@@ -25,7 +27,7 @@ export function Sidebar({
     <aside className="sidebar">
       <div className="sidebar-header">
         <strong>Prompts</strong>
-        <button className="icon-button" aria-label="New prompt">
+        <button className="icon-button" aria-label="New prompt" onClick={onCreatePrompt}>
           +
         </button>
       </div>

@@ -2,12 +2,26 @@ import type { PromptVersionRecord } from "../types";
 
 interface PromptEditorProps {
   version: PromptVersionRecord | null;
+  canCreateVersion?: boolean;
   onContentChange: (content: string) => void;
+  onCreateVersion: () => void;
 }
 
-export function PromptEditor({ version, onContentChange }: PromptEditorProps) {
+export function PromptEditor({
+  version,
+  canCreateVersion = false,
+  onContentChange,
+  onCreateVersion
+}: PromptEditorProps) {
   if (!version) {
-    return <section className="panel empty-panel">Select a prompt version to edit.</section>;
+    return (
+      <section className="panel empty-panel">
+        <p>Select a prompt version to edit.</p>
+        <button className="button primary" disabled={!canCreateVersion} onClick={onCreateVersion}>
+          Create Version
+        </button>
+      </section>
+    );
   }
 
   return (
@@ -17,7 +31,9 @@ export function PromptEditor({ version, onContentChange }: PromptEditorProps) {
           <p className="eyebrow">Prompt Editor</p>
           <h2>{version.versionName}</h2>
         </div>
-        <button className="button primary">Create Version</button>
+        <button className="button primary" onClick={onCreateVersion}>
+          Create Version
+        </button>
       </div>
       <textarea
         className="prompt-textarea"

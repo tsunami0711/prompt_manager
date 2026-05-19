@@ -1,7 +1,12 @@
 export type PassFail = "pass" | "fail";
 export type FinalResultValue = PassFail | "pending" | "error";
 export type FinalResultSource = "human" | "llm" | "run" | "none";
-export type CaseRunStatus = "pending" | "running" | "completed" | "error";
+export type CaseRunStatus =
+  | "pending"
+  | "running"
+  | "completed"
+  | "completed_with_errors"
+  | "error";
 export type RunCaseScope = "selected" | "all";
 export type JudgeMode = "human" | "llm";
 
@@ -71,6 +76,8 @@ export interface RunHistoryItem {
   id: string;
   status: CaseRunStatus;
   promptVersionName: string;
+  runModelName?: string;
+  judgeModelName?: string | null;
   caseScope: RunCaseScope;
   judgeMode: JudgeMode;
   startedAt: string;

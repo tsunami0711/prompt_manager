@@ -18,6 +18,7 @@ describe("PromptEditor", () => {
           note: null
         }}
         onContentChange={() => undefined}
+        onCreateVersion={() => undefined}
       />
     );
 
@@ -25,7 +26,13 @@ describe("PromptEditor", () => {
   });
 
   it("shows an empty panel when no prompt version is selected", () => {
-    render(<PromptEditor version={null} onContentChange={() => undefined} />);
+    render(
+      <PromptEditor
+        version={null}
+        onContentChange={() => undefined}
+        onCreateVersion={() => undefined}
+      />
+    );
 
     expect(screen.getByText("Select a prompt version to edit.")).toBeInTheDocument();
   });
@@ -51,6 +58,7 @@ describe("PromptEditor", () => {
             onContentChange(nextContent);
             setContent(nextContent);
           }}
+          onCreateVersion={() => undefined}
         />
       );
     }

@@ -10,6 +10,9 @@ import { VersionCaseResults } from "./components/VersionCaseResults";
 import { VersionMatrix } from "./components/VersionMatrix";
 import {
   createModelConfig,
+  createPrompt,
+  createPromptVersion,
+  createTestCase,
   listLatestCaseResults,
   listModelConfigs,
   listPromptVersions,
@@ -34,6 +37,10 @@ import type {
 
 const defaultJudgePrompt =
   "Return JSON only with result as pass or fail and reason explaining whether the prompt output satisfies the test case.";
+
+function isTauriRuntime() {
+  return "__TAURI_INTERNALS__" in window;
+}
 
 const fallbackPrompts: PromptRecord[] = [
   { id: "p1", name: "Memory Extractor", description: "Extract durable memories" }
@@ -226,6 +233,18 @@ export default function App() {
         );
       } catch {
         if (cancelled) return;
+        if (isTauriRuntime()) {
+          setBackendAvailable(true);
+          setPrompts([]);
+          setSelectedPromptId(null);
+          setSelectedVersionId(null);
+          setVersions([]);
+          setCases([]);
+          setResultSummaries([]);
+          setRunHistory([]);
+          setRunError("Could not load prompts from the local database.");
+          return;
+        }
         setBackendAvailable(false);
         setPrompts(fallbackPrompts);
         setSelectedPromptId((current) => current ?? fallbackPrompts[0]?.id ?? null);
@@ -345,6 +364,115 @@ export default function App() {
     setSelectedPromptId(id);
     const firstVersion = versions.find((version) => version.promptId === id);
     setSelectedVersionId(firstVersion?.id ?? null);
+  }
+
+  async function createPromptFromInput() {
+    const name = window.prompt("Prompt name");
+    if (!name?.trim()) return;
+    const description = window.prompt("Description") ?? "";
+
+    if (backendAvailable === false) {
+      const prompt = {
+        id: `local-prompt-${Date.now()}`,
+        name: name.trim(),
+        description
+      };
+      setPrompts((current) => [...current, prompt]);
+      setSelectedPromptId(prompt.id);
+      setSelectedVersionId(null);
+      setVersions([]);
+      setCases([]);
+      setResultSummaries([]);
+      setRunHistory([]);
+      return;
+    }
+
+    try {
+      const prompt = await createPrompt({ name: name.trim(), description });
+      setPrompts((current) => [...current, prompt]);
+      setSelectedPromptId(prompt.id);
+      setSelectedVersionId(null);
+      setRunError(null);
+    } catch (error) {
+      setRunError(error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  async function createVersionFromInput() {
+    if (!selectedPromptId) {
+      setRunError("Create or select a prompt before adding a version.");
+      return;
+    }
+    const versionName = window.prompt("Version name", `v${visibleVersions.length + 1}`);
+    if (!versionName?.trim()) return;
+    const content =
+      window.prompt("Prompt content", selectedVersion?.content ?? "Write the prompt here.") ?? "";
+
+    if (backendAvailable === false) {
+      const version = {
+        id: `local-version-${Date.now()}`,
+        promptId: selectedPromptId,
+        versionName: versionName.trim(),
+        content,
+        note: null
+      };
+      setVersions((current) => [...current, version]);
+      setSelectedVersionId(version.id);
+      return;
+    }
+
+    try {
+      const version = await createPromptVersion({
+        promptId: selectedPromptId,
+        versionName: versionName.trim(),
+        content,
+        note: null
+      });
+      setVersions((current) => [...current, version]);
+      setSelectedVersionId(version.id);
+      setRunError(null);
+    } catch (error) {
+      setRunError(error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  async function createCaseFromInput() {
+    if (!selectedPromptId) {
+      setRunError("Create or select a prompt before adding a case.");
+      return;
+    }
+    const title = window.prompt("Case title");
+    if (!title?.trim()) return;
+    const input = window.prompt("Case input") ?? "";
+    const tags = window.prompt("Tags", "") ?? "";
+
+    if (backendAvailable === false) {
+      const testCase = {
+        id: `local-case-${Date.now()}`,
+        promptId: selectedPromptId,
+        title: title.trim(),
+        input,
+        tags,
+        note: null,
+        enabled: true
+      };
+      setCases((current) => [...current, testCase]);
+      return;
+    }
+
+    try {
+      const testCase = await createTestCase({
+        promptId: selectedPromptId,
+        title: title.trim(),
+        input,
+        tags,
+        note: null
+      });
+      setCases((current) => [...current, testCase]);
+      setRunError(null);
+    } catch (error) {
+      setRunError(error instanceof Error ? error.message : String(error));
+    }
   }
 
   function updateVersionContent(content: string) {
@@ -472,6 +600,7 @@ export default function App() {
         versions={visibleVersions}
         selectedPromptId={selectedPromptId}
         selectedVersionId={selectedVersionId}
+        onCreatePrompt={() => void createPromptFromInput()}
         onSelectPrompt={selectPrompt}
         onSelectVersion={setSelectedVersionId}
       />
@@ -485,8 +614,17 @@ export default function App() {
         {runError && <div className="error-banner">{runError}</div>}
         {activeTab === "editor" && (
           <div className="editor-grid">
-            <PromptEditor version={selectedVersion} onContentChange={updateVersionContent} />
-            <CaseManager cases={visibleCases} />
+            <PromptEditor
+              version={selectedVersion}
+              canCreateVersion={Boolean(selectedPromptId)}
+              onContentChange={updateVersionContent}
+              onCreateVersion={() => void createVersionFromInput()}
+            />
+            <CaseManager
+              cases={visibleCases}
+              canCreateCase={Boolean(selectedPromptId)}
+              onCreateCase={() => void createCaseFromInput()}
+            />
           </div>
         )}
         {activeTab === "matrix" && (

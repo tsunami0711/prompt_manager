@@ -26,6 +26,10 @@ export function RunHistory({ runs }: { runs: RunHistoryItem[] }) {
                   {formatDate(run.startedAt)}
                   {run.finishedAt ? ` - ${formatDate(run.finishedAt)}` : ""}
                 </small>
+                <small>
+                  Run: {run.runModelName ?? "Unknown"}
+                  {run.judgeModelName ? ` / Judge: ${run.judgeModelName}` : ""}
+                </small>
               </span>
               <span className="history-meta">{label(run.status)}</span>
               <span className="history-meta">{label(run.caseScope)}</span>
@@ -43,7 +47,8 @@ export function RunHistory({ runs }: { runs: RunHistoryItem[] }) {
 }
 
 function label(value: string) {
-  return value.slice(0, 1).toUpperCase() + value.slice(1);
+  const normalized = value.replace(/_/g, " ");
+  return normalized.slice(0, 1).toUpperCase() + normalized.slice(1);
 }
 
 function formatDate(value: string) {
