@@ -2,14 +2,14 @@ import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { ModelConfigDialog } from "./ModelConfigDialog";
+import { ModelConfigPanel } from "./ModelConfigDialog";
 
-describe("ModelConfigDialog", () => {
+describe("ModelConfigPanel", () => {
   it("collects judge model config fields and saves them", async () => {
     const user = userEvent.setup();
     const onSave = vi.fn();
 
-    render(<ModelConfigDialog open={true} onClose={vi.fn()} onSave={onSave} />);
+    render(<ModelConfigPanel runConfigs={[]} judgeConfigs={[]} onSave={onSave} />);
 
     await user.type(screen.getByLabelText("Name"), "Local Judge");
     await user.type(screen.getByLabelText("Base URL"), "http://localhost:11434/v1");
@@ -22,7 +22,9 @@ describe("ModelConfigDialog", () => {
       name: "Local Judge",
       baseUrl: "http://localhost:11434/v1",
       model: "llama3.1",
-      apiKey: "test-key"
+      apiKey: "test-key",
+      temperature: 0,
+      maxTokens: 1024
     });
   });
 
@@ -30,7 +32,7 @@ describe("ModelConfigDialog", () => {
     const user = userEvent.setup();
     const onSave = vi.fn();
 
-    render(<ModelConfigDialog open={true} onClose={vi.fn()} onSave={onSave} />);
+    render(<ModelConfigPanel runConfigs={[]} judgeConfigs={[]} onSave={onSave} />);
 
     await user.selectOptions(screen.getByLabelText("Type"), "run");
     await user.type(screen.getByLabelText("Name"), "Local Runner");
@@ -44,13 +46,44 @@ describe("ModelConfigDialog", () => {
       name: "Local Runner",
       baseUrl: "http://localhost:11434/v1",
       model: "llama3.1",
-      apiKey: "test-key"
+      apiKey: "test-key",
+      temperature: 0,
+      maxTokens: 1024
     });
   });
 
-  it("does not render when closed", () => {
-    render(<ModelConfigDialog open={false} onClose={vi.fn()} onSave={vi.fn()} />);
+  it("shows saved run and judge configs", () => {
+    render(
+      <ModelConfigPanel
+        onSave={vi.fn()}
+        runConfigs={[
+          {
+            id: "run-1",
+            name: "Runner",
+            configType: "run",
+            baseUrl: "http://localhost:11434/v1",
+            model: "llama3.1",
+            apiKeyRef: "key-1",
+            temperature: 0,
+            maxTokens: 1024
+          }
+        ]}
+        judgeConfigs={[
+          {
+            id: "judge-1",
+            name: "Judge",
+            configType: "judge",
+            baseUrl: "https://api.example.com/v1",
+            model: "gpt-4.1",
+            apiKeyRef: "key-2",
+            temperature: 0,
+            maxTokens: 1024
+          }
+        ]}
+      />
+    );
 
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByText("Runner")).toBeInTheDocument();
+    expect(screen.getByText("Judge")).toBeInTheDocument();
   });
 });

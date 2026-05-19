@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { CaseManager } from "./components/CaseManager";
-import { ModelConfigDialog, type ModelConfigDraft } from "./components/ModelConfigDialog";
+import { ModelConfigPanel, type ModelConfigDraft } from "./components/ModelConfigDialog";
 import { PromptEditor } from "./components/PromptEditor";
 import { RunControls } from "./components/RunControls";
 import { RunHistory } from "./components/RunHistory";
@@ -234,7 +234,6 @@ export default function App() {
   const [runConfigs, setRunConfigs] = useState<ModelConfigRecord[]>([]);
   const [judgeConfigs, setJudgeConfigs] = useState<ModelConfigRecord[]>([]);
   const [judgeMode, setJudgeMode] = useState<JudgeMode>("human");
-  const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [isPromptDialogOpen, setIsPromptDialogOpen] = useState(false);
   const [isVersionDialogOpen, setIsVersionDialogOpen] = useState(false);
   const [isCaseDialogOpen, setIsCaseDialogOpen] = useState(false);
@@ -543,12 +542,10 @@ export default function App() {
     void upsertHumanLabel({ caseResultId, result, note: null }).catch(() => undefined);
   }
 
-  async function saveJudgeConfig(draft: ModelConfigDraft) {
+  async function saveModelConfig(draft: ModelConfigDraft) {
     try {
       const created = await createModelConfig({
-        ...draft,
-        temperature: 0,
-        maxTokens: 1024
+        ...draft
       });
       if (created.configType === "run") {
         setRunConfigs((current) => [...current.filter((config) => config.id !== created.id), created]);
@@ -560,8 +557,6 @@ export default function App() {
       }
     } catch {
       // Browser/Vite mode has no Tauri backend; keep the dialog useful for smoke testing.
-    } finally {
-      setIsConfigOpen(false);
     }
   }
 
@@ -610,14 +605,14 @@ export default function App() {
     const runModelConfig = runConfigs[0];
     if (!runModelConfig) {
       setRunError("Add a Run Model config before running cases.");
-      setIsConfigOpen(true);
+      setActiveTab("config");
       return;
     }
 
     const judgeModelConfig = mode === "llm" ? judgeConfigs[0] : null;
     if (mode === "llm" && !judgeModelConfig) {
       setRunError("Add a Judge Model config before running with LLM judge.");
-      setIsConfigOpen(true);
+      setActiveTab("config");
       return;
     }
 
@@ -651,11 +646,6 @@ export default function App() {
       />
       <section className="workspace">
         <Tabs active={activeTab} onChange={setActiveTab} />
-        <div className="workspace-toolbar">
-          <button className="button" onClick={() => setIsConfigOpen(true)}>
-            Judge Config
-          </button>
-        </div>
         {runError && <div className="error-banner">{runError}</div>}
         {activeTab === "editor" && (
           <div className="editor-grid">
@@ -726,12 +716,14 @@ export default function App() {
           </div>
         )}
         {activeTab === "history" && <RunHistory runs={runHistory} />}
+        {activeTab === "config" && (
+          <ModelConfigPanel
+            runConfigs={runConfigs}
+            judgeConfigs={judgeConfigs}
+            onSave={saveModelConfig}
+          />
+        )}
       </section>
-      <ModelConfigDialog
-        open={isConfigOpen}
-        onClose={() => setIsConfigOpen(false)}
-        onSave={saveJudgeConfig}
-      />
       <CreatePromptDialog
         open={isPromptDialogOpen}
         onClose={() => setIsPromptDialogOpen(false)}

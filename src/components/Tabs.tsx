@@ -1,10 +1,11 @@
-export type WorkspaceTab = "editor" | "matrix" | "results" | "history";
+export type WorkspaceTab = "editor" | "matrix" | "results" | "history" | "config";
 
 const labels: Record<WorkspaceTab, string> = {
   editor: "Prompt Editor",
   matrix: "Version Matrix",
   results: "Version Case Results",
-  history: "Run History"
+  history: "Run History",
+  config: "Model Config"
 };
 
 export function Tabs({

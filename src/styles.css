@@ -184,6 +184,88 @@ select {
   color: #64748b;
 }
 
+.model-config-view {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.model-config-grid {
+  display: grid;
+  grid-template-columns: minmax(360px, 0.92fr) minmax(320px, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.config-panel,
+.saved-configs {
+  display: grid;
+  gap: 16px;
+}
+
+.config-form-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.config-group {
+  display: grid;
+  gap: 10px;
+}
+
+.config-group h3 {
+  margin: 0;
+  color: #334155;
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.config-empty {
+  margin: 0;
+  padding: 14px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  color: #64748b;
+  background: #f8fafc;
+}
+
+.config-card-list {
+  display: grid;
+  gap: 8px;
+}
+
+.config-card {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid #dbe5ef;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.config-card strong,
+.config-card span,
+.config-card small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.config-card strong {
+  color: #0f172a;
+}
+
+.config-card span {
+  color: #334155;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.config-card small {
+  color: #64748b;
+  font-size: 12px;
+}
+
 .prompt-editor {
   display: flex;
   flex-direction: column;

@@ -7,9 +7,11 @@ import {
   createPrompt,
   createPromptVersion,
   createTestCase,
+  listLatestCaseResults,
   listModelConfigs,
   listPromptVersions,
   listPrompts,
+  listRunHistory,
   listTestCases,
   runSelectedCases
 } from "./lib/api";
@@ -33,6 +35,12 @@ vi.mock("./lib/api", () => ({
 describe("App prompt creation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(listLatestCaseResults).mockResolvedValue([]);
+    vi.mocked(listModelConfigs).mockResolvedValue([]);
+    vi.mocked(listPromptVersions).mockResolvedValue([]);
+    vi.mocked(listPrompts).mockResolvedValue([]);
+    vi.mocked(listRunHistory).mockResolvedValue([]);
+    vi.mocked(listTestCases).mockResolvedValue([]);
   });
 
   it("opens an in-app form when creating a prompt", async () => {
@@ -217,5 +225,56 @@ describe("App prompt creation", () => {
       await screen.findByText("model request failed with status 401: invalid api key")
     ).toBeInTheDocument();
     expect(screen.queryByText("[object Object]")).not.toBeInTheDocument();
+  });
+
+  it("renders model configuration as a workspace tab", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    expect(screen.getByRole("button", { name: "Model Config" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Judge Config" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Model Config" }));
+
+    expect(screen.getByRole("heading", { name: "Model Config" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Name")).toBeInTheDocument();
+    expect(screen.getByLabelText("Base URL")).toBeInTheDocument();
+    expect(screen.getByLabelText("Model")).toBeInTheDocument();
+    expect(screen.getByLabelText("API Key")).toBeInTheDocument();
+  });
+
+  it("moves to model config when a run model is missing", async () => {
+    const user = userEvent.setup();
+    vi.mocked(listPrompts).mockResolvedValueOnce([
+      { id: "p1", name: "Memory Prompt", description: "" }
+    ]);
+    vi.mocked(listPromptVersions).mockResolvedValueOnce([
+      {
+        id: "v1",
+        promptId: "p1",
+        versionName: "v1",
+        content: "Extract memories.",
+        note: null
+      }
+    ]);
+    vi.mocked(listTestCases).mockResolvedValueOnce([
+      {
+        id: "c1",
+        promptId: "p1",
+        title: "Commute",
+        input: "I drive home from work.",
+        tags: "",
+        note: null,
+        enabled: true
+      }
+    ]);
+    render(<App />);
+
+    await screen.findByText("Commute");
+    await user.click(screen.getByRole("button", { name: "Version Matrix" }));
+    await user.click(screen.getByRole("button", { name: "Run All" }));
+
+    expect(await screen.findByRole("heading", { name: "Model Config" })).toBeInTheDocument();
+    expect(screen.getByText("Add a Run Model config before running cases.")).toBeInTheDocument();
   });
 });
