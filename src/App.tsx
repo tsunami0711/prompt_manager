@@ -11,16 +11,19 @@ import { VersionMatrix } from "./components/VersionMatrix";
 import {
   createModelConfig,
   listLatestCaseResults,
+  listModelConfigs,
   listPromptVersions,
   listPrompts,
   listRunHistory,
   listTestCases,
+  runSelectedCases,
   updatePromptVersionContent,
   upsertHumanLabel
 } from "./lib/api";
 import type {
   CaseResultSummary,
   JudgeMode,
+  ModelConfigRecord,
   PassFail,
   PromptRecord,
   PromptVersionRecord,
@@ -28,6 +31,9 @@ import type {
   RunHistoryItem,
   TestCaseRecord
 } from "./types";
+
+const defaultJudgePrompt =
+  "Return JSON only with result as pass or fail and reason explaining whether the prompt output satisfies the test case.";
 
 const fallbackPrompts: PromptRecord[] = [
   { id: "p1", name: "Memory Extractor", description: "Extract durable memories" }
@@ -187,8 +193,12 @@ export default function App() {
   const [cases, setCases] = useState<TestCaseRecord[]>(fallbackCases);
   const [resultSummaries, setResultSummaries] = useState<CaseResultSummary[]>(fixtureResults);
   const [runHistory, setRunHistory] = useState<RunHistoryItem[]>(fallbackRunHistory);
+  const [runConfigs, setRunConfigs] = useState<ModelConfigRecord[]>([]);
+  const [judgeConfigs, setJudgeConfigs] = useState<ModelConfigRecord[]>([]);
   const [judgeMode, setJudgeMode] = useState<JudgeMode>("human");
   const [isConfigOpen, setIsConfigOpen] = useState(false);
+  const [backendAvailable, setBackendAvailable] = useState<boolean | null>(null);
+  const [runError, setRunError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -197,6 +207,7 @@ export default function App() {
       try {
         const loadedPrompts = await listPrompts();
         if (cancelled) return;
+        setBackendAvailable(true);
         setPrompts(loadedPrompts);
         if (loadedPrompts.length === 0) {
           setSelectedPromptId(null);
@@ -214,6 +225,7 @@ export default function App() {
         );
       } catch {
         if (cancelled) return;
+        setBackendAvailable(false);
         setPrompts(fallbackPrompts);
         setSelectedPromptId((current) => current ?? fallbackPrompts[0]?.id ?? null);
       }
@@ -225,6 +237,33 @@ export default function App() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (backendAvailable !== true) return;
+    let cancelled = false;
+
+    async function loadModelConfigs() {
+      try {
+        const [loadedRunConfigs, loadedJudgeConfigs] = await Promise.all([
+          listModelConfigs("run"),
+          listModelConfigs("judge")
+        ]);
+        if (cancelled) return;
+        setRunConfigs(loadedRunConfigs);
+        setJudgeConfigs(loadedJudgeConfigs);
+      } catch {
+        if (cancelled) return;
+        setRunConfigs([]);
+        setJudgeConfigs([]);
+      }
+    }
+
+    void loadModelConfigs();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [backendAvailable]);
 
   useEffect(() => {
     if (!selectedPromptId) return;
@@ -315,12 +354,19 @@ export default function App() {
 
   async function saveJudgeConfig(draft: ModelConfigDraft) {
     try {
-      await createModelConfig({
+      const created = await createModelConfig({
         ...draft,
-        configType: "judge",
         temperature: 0,
         maxTokens: 1024
       });
+      if (created.configType === "run") {
+        setRunConfigs((current) => [...current.filter((config) => config.id !== created.id), created]);
+      } else {
+        setJudgeConfigs((current) => [
+          ...current.filter((config) => config.id !== created.id),
+          created
+        ]);
+      }
     } catch {
       // Browser/Vite mode has no Tauri backend; keep the dialog useful for smoke testing.
     } finally {
@@ -328,7 +374,7 @@ export default function App() {
     }
   }
 
-  function recordRun(caseIds: string[], mode: JudgeMode, scope: RunCaseScope) {
+  function recordLocalRun(caseIds: string[], mode: JudgeMode, scope: RunCaseScope) {
     const startedAt = new Date().toISOString();
     const promptVersionName = selectedVersion?.versionName ?? "No version selected";
     setRunHistory((current) => [
@@ -348,6 +394,58 @@ export default function App() {
     setActiveTab("history");
   }
 
+  async function refreshRunData(promptId: string) {
+    const [loadedResults, loadedHistory] = await Promise.all([
+      listLatestCaseResults(promptId),
+      listRunHistory(promptId)
+    ]);
+    setResultSummaries(loadedResults);
+    setRunHistory(loadedHistory);
+  }
+
+  async function handleRun(caseIds: string[], mode: JudgeMode, scope: RunCaseScope) {
+    setRunError(null);
+
+    if (!selectedPromptId || !selectedVersionId || caseIds.length === 0) {
+      setRunError("Select a prompt version and at least one case before running.");
+      return;
+    }
+
+    if (backendAvailable === false) {
+      recordLocalRun(caseIds, mode, scope);
+      return;
+    }
+
+    const runModelConfig = runConfigs[0];
+    if (!runModelConfig) {
+      setRunError("Add a Run Model config before running cases.");
+      setIsConfigOpen(true);
+      return;
+    }
+
+    const judgeModelConfig = mode === "llm" ? judgeConfigs[0] : null;
+    if (mode === "llm" && !judgeModelConfig) {
+      setRunError("Add a Judge Model config before running with LLM judge.");
+      setIsConfigOpen(true);
+      return;
+    }
+
+    try {
+      await runSelectedCases({
+        promptVersionId: selectedVersionId,
+        caseIds,
+        runModelConfigId: runModelConfig.id,
+        judgeMode: mode,
+        judgeModelConfigId: judgeModelConfig?.id ?? null,
+        judgePrompt: mode === "llm" ? defaultJudgePrompt : null
+      });
+      await refreshRunData(selectedPromptId);
+      setActiveTab("history");
+    } catch (error) {
+      setRunError(error instanceof Error ? error.message : String(error));
+    }
+  }
+
   return (
     <main className="app-layout">
       <Sidebar
@@ -365,6 +463,7 @@ export default function App() {
             Judge Config
           </button>
         </div>
+        {runError && <div className="error-banner">{runError}</div>}
         {activeTab === "editor" && (
           <div className="editor-grid">
             <PromptEditor version={selectedVersion} onContentChange={updateVersionContent} />
@@ -376,8 +475,8 @@ export default function App() {
             versions={visibleVersions}
             cases={visibleCases}
             results={resultSummaries}
-            onRunSelected={(caseIds, mode) => recordRun(caseIds, mode, "selected")}
-            onRunAll={(caseIds, mode) => recordRun(caseIds, mode, "all")}
+            onRunSelected={(caseIds, mode) => void handleRun(caseIds, mode, "selected")}
+            onRunAll={(caseIds, mode) => void handleRun(caseIds, mode, "all")}
           />
         )}
         {activeTab === "results" && (
@@ -393,14 +492,14 @@ export default function App() {
                   judgeMode={judgeMode}
                   onJudgeModeChange={setJudgeMode}
                   onRunSelected={() =>
-                    recordRun(
+                    void handleRun(
                       visibleCases.map((testCase) => testCase.id),
                       judgeMode,
                       "selected"
                     )
                   }
                   onRunAll={() =>
-                    recordRun(
+                    void handleRun(
                       visibleCases.map((testCase) => testCase.id),
                       judgeMode,
                       "all"

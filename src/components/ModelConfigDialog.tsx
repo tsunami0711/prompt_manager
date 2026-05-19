@@ -1,6 +1,7 @@
 import { FormEvent, useState } from "react";
 
 export interface ModelConfigDraft {
+  configType: "run" | "judge";
   name: string;
   baseUrl: string;
   model: string;
@@ -8,6 +9,7 @@ export interface ModelConfigDraft {
 }
 
 const emptyDraft: ModelConfigDraft = {
+  configType: "judge",
   name: "",
   baseUrl: "",
   model: "",
@@ -56,6 +58,19 @@ export function ModelConfigDialog({
         </div>
 
         <form className="config-form" onSubmit={submit}>
+          <label>
+            <span>Type</span>
+            <select
+              className="input"
+              value={draft.configType}
+              onChange={(event) =>
+                update("configType", event.target.value as ModelConfigDraft["configType"])
+              }
+            >
+              <option value="judge">Judge Model</option>
+              <option value="run">Run Model</option>
+            </select>
+          </label>
           <label>
             <span>Name</span>
             <input
