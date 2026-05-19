@@ -29,6 +29,7 @@ pub struct TestCaseRecord {
     pub prompt_id: String,
     pub title: String,
     pub input: String,
+    pub enabled: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -224,17 +225,19 @@ impl Repository {
             prompt_id: prompt_id.to_string(),
             title: title.to_string(),
             input: input.to_string(),
+            enabled: true,
         })
     }
 
     pub fn list_test_cases(&self, prompt_id: &str) -> AppResult<Vec<TestCaseRecord>> {
-        let mut stmt = self.conn.prepare("SELECT id, prompt_id, title, input FROM test_cases WHERE prompt_id = ?1 ORDER BY created_at ASC")?;
+        let mut stmt = self.conn.prepare("SELECT id, prompt_id, title, input, enabled FROM test_cases WHERE prompt_id = ?1 ORDER BY created_at ASC")?;
         let rows = stmt.query_map(params![prompt_id], |row| {
             Ok(TestCaseRecord {
                 id: row.get(0)?,
                 prompt_id: row.get(1)?,
                 title: row.get(2)?,
                 input: row.get(3)?,
+                enabled: row.get::<_, i64>(4)? != 0,
             })
         })?;
         rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
@@ -701,7 +704,7 @@ impl Repository {
             let test_case = self
                 .conn
                 .query_row(
-                    "SELECT id, prompt_id, title, input FROM test_cases WHERE id = ?1",
+                    "SELECT id, prompt_id, title, input, enabled FROM test_cases WHERE id = ?1",
                     params![case_id],
                     |row| {
                         Ok(TestCaseRecord {
@@ -709,6 +712,7 @@ impl Repository {
                             prompt_id: row.get(1)?,
                             title: row.get(2)?,
                             input: row.get(3)?,
+                            enabled: row.get::<_, i64>(4)? != 0,
                         })
                     },
                 )

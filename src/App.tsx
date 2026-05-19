@@ -510,7 +510,9 @@ export default function App() {
                   }
                   onRunAll={() =>
                     void handleRun(
-                      visibleCases.map((testCase) => testCase.id),
+                      visibleCases
+                        .filter((testCase) => testCase.enabled !== false)
+                        .map((testCase) => testCase.id),
                       judgeMode,
                       "all"
                     )

@@ -135,7 +135,12 @@ export function VersionMatrix({
             judgeMode={judgeMode}
             onJudgeModeChange={setJudgeMode}
             onRunSelected={() => onRunSelected?.(Array.from(selectedCaseIds), judgeMode)}
-            onRunAll={() => onRunAll?.(cases.map((testCase) => testCase.id), judgeMode)}
+            onRunAll={() =>
+              onRunAll?.(
+                cases.filter((testCase) => testCase.enabled !== false).map((testCase) => testCase.id),
+                judgeMode
+              )
+            }
           />
         </div>
       </div>
