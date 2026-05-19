@@ -58,6 +58,21 @@ function isTauriRuntime() {
   return "__TAURI_INTERNALS__" in window;
 }
 
+function formatErrorMessage(error: unknown) {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  if (error && typeof error === "object") {
+    const maybeMessage = (error as { message?: unknown }).message;
+    if (typeof maybeMessage === "string" && maybeMessage.trim()) return maybeMessage;
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return "An unexpected error occurred.";
+    }
+  }
+  return String(error);
+}
+
 const fallbackPrompts: PromptRecord[] = [
   { id: "p1", name: "Memory Extractor", description: "Extract durable memories" }
 ];
@@ -414,7 +429,7 @@ export default function App() {
       setIsPromptDialogOpen(false);
       setRunError(null);
     } catch (error) {
-      setRunError(error instanceof Error ? error.message : String(error));
+      setRunError(formatErrorMessage(error));
     }
   }
 
@@ -457,7 +472,7 @@ export default function App() {
       setIsVersionDialogOpen(false);
       setRunError(null);
     } catch (error) {
-      setRunError(error instanceof Error ? error.message : String(error));
+      setRunError(formatErrorMessage(error));
     }
   }
 
@@ -501,7 +516,7 @@ export default function App() {
       setIsCaseDialogOpen(false);
       setRunError(null);
     } catch (error) {
-      setRunError(error instanceof Error ? error.message : String(error));
+      setRunError(formatErrorMessage(error));
     }
   }
 
@@ -619,7 +634,7 @@ export default function App() {
       await refreshRunData(selectedPromptId);
       setActiveTab("history");
     } catch (error) {
-      setRunError(error instanceof Error ? error.message : String(error));
+      setRunError(formatErrorMessage(error));
     }
   }
 

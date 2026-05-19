@@ -3,7 +3,16 @@ import "@testing-library/jest-dom/vitest";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
-import { createPrompt, createPromptVersion, createTestCase, listPrompts } from "./lib/api";
+import {
+  createPrompt,
+  createPromptVersion,
+  createTestCase,
+  listModelConfigs,
+  listPromptVersions,
+  listPrompts,
+  listTestCases,
+  runSelectedCases
+} from "./lib/api";
 
 vi.mock("./lib/api", () => ({
   createModelConfig: vi.fn(),
@@ -152,5 +161,61 @@ describe("App prompt creation", () => {
       note: null
     });
     expect(await screen.findByText("User name")).toBeInTheDocument();
+  });
+
+  it("shows backend run errors by message instead of object text", async () => {
+    const user = userEvent.setup();
+    vi.mocked(listPrompts).mockResolvedValueOnce([
+      { id: "p1", name: "Memory Prompt", description: "" }
+    ]);
+    vi.mocked(listPromptVersions).mockResolvedValueOnce([
+      {
+        id: "v1",
+        promptId: "p1",
+        versionName: "v1",
+        content: "Extract memories.",
+        note: null
+      }
+    ]);
+    vi.mocked(listTestCases).mockResolvedValueOnce([
+      {
+        id: "c1",
+        promptId: "p1",
+        title: "Commute",
+        input: "I drive home from work.",
+        tags: "",
+        note: null,
+        enabled: true
+      }
+    ]);
+    vi.mocked(listModelConfigs).mockImplementation(async (configType) =>
+      configType === "run"
+        ? [
+            {
+              id: "run-config",
+              name: "Run Model",
+              configType: "run",
+              baseUrl: "http://localhost:9999",
+              model: "test-model",
+              apiKeyRef: "test-key",
+              temperature: 0,
+              maxTokens: 128
+            }
+          ]
+        : []
+    );
+    vi.mocked(runSelectedCases).mockRejectedValueOnce({
+      message: "model request failed with status 401: invalid api key"
+    });
+    render(<App />);
+
+    await screen.findByText("Commute");
+    await user.click(screen.getByRole("button", { name: "Version Matrix" }));
+    await user.click(screen.getByRole("button", { name: "Run All" }));
+
+    expect(
+      await screen.findByText("model request failed with status 401: invalid api key")
+    ).toBeInTheDocument();
+    expect(screen.queryByText("[object Object]")).not.toBeInTheDocument();
   });
 });
