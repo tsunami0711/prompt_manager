@@ -76,10 +76,13 @@ export function VersionMatrix({
     return true;
   });
 
-  const visibleCaseIds = visibleRows.map((row) => row.testCase.id);
+  const selectableVisibleCaseIds = visibleRows
+    .filter((row) => row.testCase.enabled !== false)
+    .map((row) => row.testCase.id);
   const isAllVisibleSelected =
-    visibleCaseIds.length > 0 && visibleCaseIds.every((id) => selectedCaseIds.has(id));
-  const isSomeVisibleSelected = visibleCaseIds.some((id) => selectedCaseIds.has(id));
+    selectableVisibleCaseIds.length > 0 &&
+    selectableVisibleCaseIds.every((id) => selectedCaseIds.has(id));
+  const isSomeVisibleSelected = selectableVisibleCaseIds.some((id) => selectedCaseIds.has(id));
 
   useEffect(() => {
     if (selectAllRef.current) {
@@ -104,9 +107,9 @@ export function VersionMatrix({
       const next = new Set(current);
 
       if (isAllVisibleSelected) {
-        visibleCaseIds.forEach((id) => next.delete(id));
+        selectableVisibleCaseIds.forEach((id) => next.delete(id));
       } else {
-        visibleCaseIds.forEach((id) => next.add(id));
+        selectableVisibleCaseIds.forEach((id) => next.add(id));
       }
 
       return next;
@@ -134,7 +137,14 @@ export function VersionMatrix({
             selectedCount={selectedCaseIds.size}
             judgeMode={judgeMode}
             onJudgeModeChange={setJudgeMode}
-            onRunSelected={() => onRunSelected?.(Array.from(selectedCaseIds), judgeMode)}
+            onRunSelected={() =>
+              onRunSelected?.(
+                Array.from(selectedCaseIds).filter((caseId) =>
+                  cases.some((testCase) => testCase.id === caseId && testCase.enabled !== false)
+                ),
+                judgeMode
+              )
+            }
             onRunAll={() =>
               onRunAll?.(
                 cases.filter((testCase) => testCase.enabled !== false).map((testCase) => testCase.id),
@@ -180,6 +190,7 @@ export function VersionMatrix({
                     type="checkbox"
                     aria-label={`Select ${row.testCase.title}`}
                     checked={selectedCaseIds.has(row.testCase.id)}
+                    disabled={row.testCase.enabled === false}
                     onChange={() => toggleCase(row.testCase.id)}
                   />
                 </td>
