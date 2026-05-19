@@ -12,12 +12,14 @@ export function VersionCaseResults({
   cases,
   results,
   selectedVersionId,
-  onLabel
+  onLabel,
+  onSelectedCaseChange
 }: {
   cases: TestCaseRecord[];
   results: CaseResultSummary[];
   selectedVersionId: string | null;
   onLabel: (caseResultId: string, result: PassFail) => void;
+  onSelectedCaseChange?: (caseId: string | null) => void;
 }) {
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(cases[0]?.id ?? null);
 
@@ -54,6 +56,11 @@ export function VersionCaseResults({
     onLabel(selectedResult.caseResultId, result);
   }
 
+  function selectCase(caseId: string) {
+    setSelectedCaseId(caseId);
+    onSelectedCaseChange?.(caseId);
+  }
+
   if (!selectedVersionId) {
     return <p className="empty-panel">Select a prompt version to review case results.</p>;
   }
@@ -74,7 +81,7 @@ export function VersionCaseResults({
               key={row.testCase.id}
               className={isSelected ? "case-result-row selected" : "case-result-row"}
               aria-pressed={isSelected}
-              onClick={() => setSelectedCaseId(row.testCase.id)}
+              onClick={() => selectCase(row.testCase.id)}
             >
               <span className="case-result-title">
                 <strong>{row.testCase.title}</strong>

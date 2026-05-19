@@ -338,6 +338,11 @@ impl Repository {
                     "selected case does not belong to prompt version prompt".to_string(),
                 ));
             }
+            if !test_case.enabled {
+                return Err(AppError::Validation(
+                    "selected case is disabled".to_string(),
+                ));
+            }
         }
 
         let judge = match input.judge_mode.as_str() {

@@ -199,6 +199,7 @@ export default function App() {
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [backendAvailable, setBackendAvailable] = useState<boolean | null>(null);
   const [runError, setRunError] = useState<string | null>(null);
+  const [selectedReviewCaseId, setSelectedReviewCaseId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -330,6 +331,14 @@ export default function App() {
   const selectedVersion = useMemo(
     () => visibleVersions.find((version) => version.id === selectedVersionId) ?? null,
     [selectedVersionId, visibleVersions]
+  );
+
+  const selectedReviewCase = useMemo(
+    () =>
+      visibleCases.find((testCase) => testCase.id === selectedReviewCaseId) ??
+      visibleCases[0] ??
+      null,
+    [selectedReviewCaseId, visibleCases]
   );
 
   function selectPrompt(id: string) {
@@ -498,12 +507,16 @@ export default function App() {
               </div>
               <div className="matrix-actions">
                 <RunControls
-                  selectedCount={visibleCases.length}
+                  selectedCount={
+                    selectedReviewCase && selectedReviewCase.enabled !== false ? 1 : 0
+                  }
                   judgeMode={judgeMode}
                   onJudgeModeChange={setJudgeMode}
                   onRunSelected={() =>
                     void handleRun(
-                      visibleCases.map((testCase) => testCase.id),
+                      selectedReviewCase && selectedReviewCase.enabled !== false
+                        ? [selectedReviewCase.id]
+                        : [],
                       judgeMode,
                       "selected"
                     )
@@ -525,6 +538,7 @@ export default function App() {
               results={resultSummaries}
               selectedVersionId={selectedVersionId}
               onLabel={labelCaseResult}
+              onSelectedCaseChange={setSelectedReviewCaseId}
             />
           </div>
         )}
