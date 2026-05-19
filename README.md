@@ -5,10 +5,17 @@ reviewing version/case results, and tracking evaluation runs.
 
 ## Development
 
-Install dependencies:
+Install JavaScript dependencies:
 
 ```sh
 npm install
+```
+
+Install Rust if `cargo` is not available:
+
+```sh
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+rustup default stable
 ```
 
 Run the browser dev app:
@@ -22,6 +29,55 @@ Run the Tauri desktop app:
 ```sh
 npm run desktop
 ```
+
+The browser dev app uses demo data when Tauri commands are unavailable. Use the
+desktop app when validating SQLite persistence, keychain-backed API keys, model
+calls, and evaluation runs.
+
+## Deployment
+
+Build a production desktop app:
+
+```sh
+npm install
+npm run tauri -- build
+```
+
+The Tauri build runs the frontend production build first, then compiles the Rust
+desktop shell. Generated artifacts are written under:
+
+```text
+src-tauri/target/release/bundle/
+```
+
+On macOS, look for the `.app` bundle and installer artifacts in the macOS bundle
+subdirectories. For local testing before packaging, run:
+
+```sh
+npm run desktop
+```
+
+### Deployment Prerequisites
+
+- Node.js and npm
+- Rust stable toolchain (`cargo` and `rustc`)
+- Platform build tools for the target OS
+- Network access to the OpenAI-compatible model endpoints configured in the app
+
+### Runtime Configuration
+
+Model providers are configured inside the app through Judge Config. Add separate
+configs for run models and judge models as needed:
+
+- Name
+- Base URL
+- Model name
+- API key
+- Temperature and max tokens
+
+API keys are stored through the desktop backend rather than the browser fallback.
+For production validation, configure and run the packaged Tauri app, not only the
+Vite browser app.
 
 ## Checks
 
