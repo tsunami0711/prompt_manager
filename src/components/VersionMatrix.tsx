@@ -79,6 +79,12 @@ export function VersionMatrix({
   const selectableVisibleCaseIds = visibleRows
     .filter((row) => row.testCase.enabled !== false)
     .map((row) => row.testCase.id);
+  const enabledCaseIds = new Set(
+    cases.filter((testCase) => testCase.enabled !== false).map((testCase) => testCase.id)
+  );
+  const effectiveSelectedCaseIds = Array.from(selectedCaseIds).filter((caseId) =>
+    enabledCaseIds.has(caseId)
+  );
   const isAllVisibleSelected =
     selectableVisibleCaseIds.length > 0 &&
     selectableVisibleCaseIds.every((id) => selectedCaseIds.has(id));
@@ -132,19 +138,12 @@ export function VersionMatrix({
           ))}
         </div>
         <div className="matrix-actions">
-          <span className="selection-count">{selectedCaseIds.size} selected</span>
+          <span className="selection-count">{effectiveSelectedCaseIds.length} selected</span>
           <RunControls
-            selectedCount={selectedCaseIds.size}
+            selectedCount={effectiveSelectedCaseIds.length}
             judgeMode={judgeMode}
             onJudgeModeChange={setJudgeMode}
-            onRunSelected={() =>
-              onRunSelected?.(
-                Array.from(selectedCaseIds).filter((caseId) =>
-                  cases.some((testCase) => testCase.id === caseId && testCase.enabled !== false)
-                ),
-                judgeMode
-              )
-            }
+            onRunSelected={() => onRunSelected?.(effectiveSelectedCaseIds, judgeMode)}
             onRunAll={() =>
               onRunAll?.(
                 cases.filter((testCase) => testCase.enabled !== false).map((testCase) => testCase.id),
